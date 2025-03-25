@@ -22,18 +22,21 @@
 <body>
     <h1>Simple Dino Game</h1>
     <canvas id="gameCanvas"></canvas>
-    <p>Press SPACE to jump!</p>
+    <p>Press SPACE or TAP to jump!</p>
     
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        // Make canvas full width & adjust height
-        canvas.width = window.innerWidth;
-        canvas.height = 250; // Slightly taller
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight * 0.4; // Adjust height for mobile
+        }
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
 
-        let dino = { x: 50, y: 200, width: 30, height: 30, dy: 0, jumping: false };
-        let cactus = { x: canvas.width, y: 200, width: 20, height: 30, speed: 5 };
+        let dino = { x: 50, y: canvas.height - 50, width: 30, height: 30, dy: 0, jumping: false };
+        let cactus = { x: canvas.width, y: canvas.height - 50, width: 20, height: 30, speed: 5 };
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -53,8 +56,8 @@
                 dino.y += dino.dy;
                 dino.dy += 0.7; // Gravity
 
-                if (dino.y >= 200) {
-                    dino.y = 200;
+                if (dino.y >= canvas.height - 50) {
+                    dino.y = canvas.height - 50;
                     dino.jumping = false;
                 }
             }
@@ -81,12 +84,20 @@
             requestAnimationFrame(gameLoop);
         }
 
-        document.addEventListener("keydown", (e) => {
-            if (e.code === "Space" && !dino.jumping) {
+        function jump() {
+            if (!dino.jumping) {
                 dino.jumping = true;
                 dino.dy = -12; // Higher jump
             }
+        }
+
+        // Keyboard input
+        document.addEventListener("keydown", (e) => {
+            if (e.code === "Space") jump();
         });
+
+        // Touch input for mobile
+        document.addEventListener("touchstart", jump);
 
         gameLoop();
     </script>
