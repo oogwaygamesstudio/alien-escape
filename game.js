@@ -593,7 +593,11 @@ function gameLoop(currentTime) {
 }
 
 // Event listeners
-document.addEventListener('keydown', (event) => {
+document.addEventListener('touchstart', handleTouch);
+document.addEventListener('keydown', handleKeyDown);
+
+// Handle keyboard events
+function handleKeyDown(event) {
     if (event.code === 'Space') {
         if (isGameOver) {
             startGame();
@@ -601,24 +605,31 @@ document.addEventListener('keydown', (event) => {
             jump();
         }
     }
-});
+}
 
-// Add touch controls
-canvas.addEventListener('touchstart', (event) => {
-    event.preventDefault();
-    const now = Date.now();
-    const timeSinceLastTap = now - lastTapTime;
+// Handle touch events
+function handleTouch(event) {
+    event.preventDefault();  // Prevent default touch behavior
     
     if (isGameOver) {
-        startGame();
-    } else if (timeSinceLastTap < 300) { // Double tap threshold
-        jump(); // This will trigger double jump if conditions are met
-    } else {
-        jump();
+        return;  // Don't handle jumps if game is over
     }
+
+    const now = Date.now();
     
-    lastTapTime = now;
-});
+    if (!lastTapTime) {
+        lastTapTime = now;
+        jump();
+    } else {
+        const tapLength = now - lastTapTime;
+        if (tapLength < 300 && canDoubleJump) {  // 300ms window for double tap
+            doubleJump();
+        } else {
+            jump();
+        }
+        lastTapTime = now;
+    }
+}
 
 // Make startGame available globally for the restart button
 window.startGame = startGame;
