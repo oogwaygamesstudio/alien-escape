@@ -2,7 +2,44 @@
 <html>
 <head>
     <title>Dino Game</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f7f7f7;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        .game-container {
+            position: relative;
+        }
+        #game {
+            background: white;
+            border: 2px solid #333;
+            display: block;
+        }
+        .score {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            color: #333;
+        }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 30px;
+            color: #333;
+            text-align: center;
+            display: none;
+        }
+    </style>
 </head>
 <body>
     <div class="game-container">
@@ -10,6 +47,104 @@
         <div class="score">Score: 0</div>
         <div class="game-over">GAME OVER<br>Press Space to restart</div>
     </div>
-    <script src="game.js"></script>
+    <script>
+        // ========== FULL GAME CODE ==========
+        const canvas = document.getElementById("game");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.querySelector(".score");
+        const gameOverElement = document.querySelector(".game-over");
+
+        // Embedded Dino sprite (base64)
+        const dinoImg = new Image();
+        dinoImg.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw1AUhU9TpaIVBzuIOGSoThZERRy1CkWoEGqFVh1MbvqhNGlIUlwcBdeCgx+LVQcXZ10dXAVB8AfE0clJ0UVK/F9SaBHjwXE/3t173L0DhGaVqWbPOKBqlpFOxMVcflUMvCKIEYQwY0hmljEnSSn4jq97BPh6F+dZ/uf+HL1qzmJAQCSeZYZpE28QT2/aBud94ggryirxOfGYSRckfuS64vEb54LLAs+MmOnUPHGEWCy0sdLGrGhqxFPEUVXTKV/Ieaxy3uKslquseU/+wnBOX1nmOq1hJLCIJUgQoaCKEsqwEaNdJ8VCis7jPv5h1y+RSyFXCYwcC6hAg+z4wf/gd7dWfnLCThJoQrgt9t4xAYR7BZtN2/bXc2g/zBwJlfdlXc5hU7DyOM3Clk3AkQC9MsRMBdKIGD3z7mP8xukX0t7kZ9H5jP0CujRW6dXAB6LgCDbA2Tf5e3d7eP3bq3d7zf+7KjDzC5qF3qAAAAAElFTkSuQmCC";
+
+        let dino = { x: 50, y: 150, width: 40, height: 60, isJumping: false, velocity: 0 };
+        let cacti = [];
+        let score = 0;
+        let gameSpeed = 5;
+        let gameOver = false;
+        let frameCount = 0;
+
+        document.addEventListener("keydown", (e) => {
+            if (e.code === "Space" && !dino.isJumping && !gameOver) {
+                dino.isJumping = true;
+                dino.velocity = -12;
+            }
+            if (e.code === "Space" && gameOver) {
+                resetGame();
+            }
+        });
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw ground
+            ctx.fillStyle = "#555";
+            ctx.fillRect(0, 210, canvas.width, 5);
+            
+            // Draw dino
+            ctx.drawImage(dinoImg, dino.x, dino.y, dino.width, dino.height);
+            
+            // Dino physics
+            if (dino.isJumping) {
+                dino.y += dino.velocity;
+                dino.velocity += 0.8;
+                if (dino.y >= 150) {
+                    dino.y = 150;
+                    dino.isJumping = false;
+                }
+            }
+            
+            // Spawn cacti
+            if (frameCount % 100 === 0) {
+                cacti.push({ x: 800, width: 30, height: 50 });
+            }
+            
+            // Draw cacti
+            ctx.fillStyle = "#555";
+            for (let i = 0; i < cacti.length; i++) {
+                const cactus = cacti[i];
+                ctx.fillRect(cactus.x, 160, cactus.width, cactus.height);
+                cactus.x -= gameSpeed;
+                
+                // Collision
+                if (
+                    dino.x < cactus.x + cactus.width &&
+                    dino.x + dino.width > cactus.x &&
+                    dino.y < 160 + cactus.height &&
+                    dino.y + dino.height > 160
+                ) {
+                    gameOver = true;
+                    gameOverElement.style.display = "block";
+                }
+                
+                // Remove off-screen cacti
+                if (cactus.x < -cactus.width) {
+                    cacti.splice(i, 1);
+                    score++;
+                    scoreElement.textContent = `Score: ${score}`;
+                    if (score % 5 === 0) gameSpeed += 0.5;
+                }
+            }
+            
+            frameCount++;
+            if (!gameOver) requestAnimationFrame(gameLoop);
+        }
+
+        function resetGame() {
+            dino = { x: 50, y: 150, width: 40, height: 60, isJumping: false, velocity: 0 };
+            cacti = [];
+            score = 0;
+            gameSpeed = 5;
+            gameOver = false;
+            frameCount = 0;
+            scoreElement.textContent = "Score: 0";
+            gameOverElement.style.display = "none";
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game
+        dinoImg.onload = resetGame;
+    </script>
 </body>
 </html>
