@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kyle the Dino</title>
+    <title>Alien Escape</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -13,7 +13,7 @@
             font-family: 'Press Start 2P', cursive;
             margin: 0;
             overflow: hidden;
-            background: linear-gradient(to bottom, #87CEEB, #90EE90);
+            background: linear-gradient(to bottom, #2b334d, #2b334d);
         }
         canvas {
             display: block;
@@ -26,7 +26,7 @@
             position: absolute;
             bottom: 10px;
             width: 100%;
-            color: #333;
+            color: rgba(255, 255, 255, 0.6);
         }
         h1 {
             position: absolute;
@@ -113,14 +113,14 @@
     </style>
 </head>
 <body>
-    <h1>Kyle the Dino</h1>
+    <h1>Alien Escape</h1>
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         <div id="gameOver">GAME OVER!</div>
         <button id="restartButton">RESTART</button>
     </div>
     <p id="instructions">Tap to jump and double tap to double jump</p>
-    <p id="credit" style="position: absolute; bottom: -10px; width: 100%; color: #333; font-size: 12px; font-family: 'Press Start 2P', cursive;">Dino Game by Mohsin</p>
+    <p id="credit" style="position: absolute; bottom: -10px; width: 100%; color: rgba(255, 255, 255, 0.6); font-size: 12px; font-family: 'Press Start 2P', cursive;">Alien Game by Mohsin</p>
     
     <script>
         // Add mute button functionality
