@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kobe the Dino</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
         body {
             text-align: center;
-            font-family: Arial, sans-serif;
+            font-family: 'Press Start 2P', cursive;
             margin: 0;
             overflow: hidden;
             background: linear-gradient(to bottom, skyblue, lightgreen);
@@ -15,7 +17,7 @@
         canvas {
             display: block;
             width: 100vw;
-            height: 50vh;
+            height: 60vh;
         }
         #score {
             position: absolute;
@@ -37,52 +39,78 @@
             border: none;
             cursor: pointer;
         }
+        #creator {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            font-size: 16px;
+        }
+        #instructions {
+            font-size: 14px;
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
     <h1>Kobe the Dino</h1>
+    <div id="creator">Created by Mohsin</div>
     <div id="score">Score: 0</div>
     <canvas id="gameCanvas"></canvas>
     <button id="restartBtn" onclick="restartGame()">Restart</button>
-    <p>Press SPACE or TAP to jump!</p>
+    <p id="instructions">Tap to jump, double tap to double jump</p>
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight * 0.5;
+        canvas.height = window.innerHeight * 0.6;
         
         let dino = { x: 50, y: canvas.height - 50, width: 30, height: 30, dy: 0, jumping: false, canDoubleJump: false };
         let cactus = { x: canvas.width, y: canvas.height - 50, width: 20, height: 30, speed: 2 };
         let score = 0;
         let gameRunning = true;
-
+        
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+            
+            // Draw background elements
+            ctx.strokeStyle = "gray";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(100, canvas.height - 20);
+            ctx.lineTo(200, canvas.height - 50);
+            ctx.lineTo(300, canvas.height - 20);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(500, 50, 20, 0, Math.PI * 2);
+            ctx.stroke();
+            
             // Draw dino
             ctx.fillStyle = "green";
             ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
-
+            
             // Draw cactus
             ctx.fillStyle = "brown";
             ctx.fillRect(cactus.x, cactus.y, cactus.width, cactus.height);
         }
-
+        
         function update() {
             if (!gameRunning) return;
-
+            
             // Dino jump logic
             if (dino.jumping) {
                 dino.y += dino.dy;
                 dino.dy += 0.8; // Gravity
-
+                
                 if (dino.y >= canvas.height - 50) {
                     dino.y = canvas.height - 50;
                     dino.jumping = false;
                     dino.canDoubleJump = false;
                 }
             }
-
+            
             // Move cactus
             cactus.x -= cactus.speed;
             if (cactus.x < -20) {
@@ -90,7 +118,7 @@
                 score++;
                 document.getElementById("score").innerText = "Score: " + score;
             }
-
+            
             // Check collision
             if (
                 dino.x < cactus.x + cactus.width &&
@@ -101,13 +129,13 @@
                 gameOver();
             }
         }
-
+        
         function gameLoop() {
             update();
             draw();
             if (gameRunning) requestAnimationFrame(gameLoop);
         }
-
+        
         function jump() {
             if (!dino.jumping) {
                 dino.jumping = true;
@@ -118,12 +146,12 @@
                 dino.canDoubleJump = false;
             }
         }
-
+        
         function gameOver() {
             gameRunning = false;
             document.getElementById("restartBtn").style.display = "block";
         }
-
+        
         function restartGame() {
             dino.y = canvas.height - 50;
             cactus.x = canvas.width;
@@ -133,15 +161,15 @@
             document.getElementById("restartBtn").style.display = "none";
             gameLoop();
         }
-
+        
         document.addEventListener("keydown", (e) => {
             if (e.code === "Space") jump();
         });
-
+        
         document.addEventListener("touchstart", () => {
             jump();
         });
-
+        
         gameLoop();
     </script>
 </body>
