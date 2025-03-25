@@ -1,4 +1,4 @@
-# Dino Game
+# Kyle
 
 A fun dinosaur game that works on both web browsers and mobile devices. The game features a jumping dinosaur that must avoid obstacles.
 
