@@ -1,31 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dino Game Test</title>
-    <style>
-        body {
-            background: #222;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
-        .wave {
-            font-size: 60px;
-            color: #4CAF50;
-            animation: wave 2s infinite;
-            text-shadow: 0 0 10px lime;
-        }
-        @keyframes wave {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(15deg); }
-            75% { transform: rotate(-15deg); }
-        }
-    </style>
+    <title>Dino Game</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="wave">👋 Hello Mohsin!</div>
+    <div class="game-container">
+        <canvas id="game" width="800" height="300"></canvas>
+        <div class="score">Score: 0</div>
+        <div class="game-over">GAME OVER<br>Press Space to restart</div>
+    </div>
+    <script src="game.js"></script>
 </body>
 </html>
