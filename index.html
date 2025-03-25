@@ -14,6 +14,14 @@
             margin: 0;
             overflow: hidden;
             background: linear-gradient(to bottom, #2b334d, #2b334d);
+            touch-action: manipulation;
+            height: 100vh;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            touch-action: manipulation;
         }
         canvas {
             display: block;
@@ -27,6 +35,7 @@
             bottom: 10px;
             width: 100%;
             color: rgba(255, 255, 255, 0.6);
+            pointer-events: none;
         }
         h1 {
             position: absolute;
@@ -36,6 +45,7 @@
             font-size: 20px;
             color: #333;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            pointer-events: none;
         }
         #muteButton {
             position: absolute;
@@ -75,6 +85,7 @@
             text-shadow: 2px 2px 0 #000;
             box-shadow: 0 4px 0 #B71C1C,
                        0 6px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
         }
         #restartButton:hover {
             background: #FF7070;
@@ -105,10 +116,20 @@
                 -2px 2px 0 #fff,
                 2px 2px 0 #fff,
                 4px 4px 0 #000;
+            pointer-events: none;
         }
         #gameOver.visible {
             transform: translate(-50%, -50%) scale(1);
             opacity: 1;
+        }
+        #credit {
+            position: absolute;
+            bottom: -10px;
+            width: 100%;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            font-family: 'Press Start 2P', cursive;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -120,36 +141,21 @@
         <button id="restartButton">RESTART</button>
     </div>
     <p id="instructions">Tap to jump and double tap to double jump</p>
-    <p id="credit" style="position: absolute; bottom: -10px; width: 100%; color: rgba(255, 255, 255, 0.6); font-size: 12px; font-family: 'Press Start 2P', cursive;">Alien Game by Mohsin</p>
+    <p id="credit">Alien Game by Mohsin</p>
     
     <script>
-        // Add mute button functionality
-        const muteButton = document.getElementById('muteButton');
         const restartButton = document.getElementById('restartButton');
         const gameOverText = document.getElementById('gameOver');
-        let isMuted = false;
-        
-        muteButton.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent event from bubbling
-            isMuted = !isMuted;
-            const music = document.getElementById('gameMusic');
-            if (music) {
-                music.muted = isMuted;
-                if (music.paused && !isMuted) {
-                    music.play().catch(e => console.log('Playback failed:', e));
-                }
-                muteButton.textContent = isMuted ? '🔇 Muted' : '🔊 Sound';
-            }
-        });
-
-        // Add touch event for mobile
-        muteButton.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            muteButton.click();
-        });
 
         restartButton.addEventListener('click', () => {
+            window.startGame();
+            restartButton.classList.remove('visible');
+            gameOverText.classList.remove('visible');
+        });
+
+        // Add touch event for restart button
+        restartButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
             window.startGame();
             restartButton.classList.remove('visible');
             gameOverText.classList.remove('visible');
