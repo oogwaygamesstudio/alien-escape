@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kobe the Dino</title>
+    <title>Kyle the Dino</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
         
@@ -12,48 +13,20 @@
             font-family: 'Press Start 2P', cursive;
             margin: 0;
             overflow: hidden;
-            background: linear-gradient(to bottom, skyblue, lightgreen);
+            background: linear-gradient(to bottom, #87CEEB, #90EE90);
         }
         canvas {
             display: block;
             width: 100vw;
             height: 60vh;
-        }
-        #score {
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        #restartBtn {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            padding: 15px 25px;
-            font-size: 18px;
-            display: none;
-            background: #ff4500;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+            image-rendering: pixelated;
         }
         #instructions {
             font-size: 14px;
             position: absolute;
             bottom: 10px;
             width: 100%;
-        }
-        #gameOverText {
-            position: absolute;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 32px;
-            color: red;
-            display: none;
+            color: #333;
         }
         h1 {
             position: absolute;
@@ -61,142 +34,127 @@
             left: 50%;
             transform: translateX(-50%);
             font-size: 20px;
-            color: #4a4a4a;
+            color: #333;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        #muteButton {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 10px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 2px solid #333;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #333;
+            transition: all 0.3s;
+        }
+        #muteButton:hover {
+            background: rgba(255, 255, 255, 0.9);
+        }
+        #muteButton:active {
+            transform: scale(0.95);
+        }
+        #restartButton {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, 80px) scale(0);
+            padding: 15px 30px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 16px;
+            background: #FF5252;
+            border: 3px solid #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #fff;
+            transition: all 0.3s;
+            opacity: 0;
+            text-shadow: 2px 2px 0 #000;
+            box-shadow: 0 4px 0 #B71C1C,
+                       0 6px 10px rgba(0,0,0,0.3);
+        }
+        #restartButton:hover {
+            background: #FF7070;
+            transform: translate(-50%, 78px) scale(1.05);
+        }
+        #restartButton:active {
+            transform: translate(-50%, 82px) scale(0.95);
+            box-shadow: 0 2px 0 #B71C1C,
+                       0 3px 6px rgba(0,0,0,0.3);
+        }
+        #restartButton.visible {
+            transform: translate(-50%, 80px) scale(1);
+            opacity: 1;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-family: 'Press Start 2P', cursive;
+            font-size: 48px;
+            color: #FF1744;
+            opacity: 0;
+            transition: all 0.3s;
+            text-shadow: 
+                -2px -2px 0 #fff,
+                2px -2px 0 #fff,
+                -2px 2px 0 #fff,
+                2px 2px 0 #fff,
+                4px 4px 0 #000;
+        }
+        #gameOver.visible {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
         }
     </style>
 </head>
 <body>
-    <h1>Kobe the Dino</h1>
-    <div id="score">Score: 0</div>
-    <canvas id="gameCanvas"></canvas>
-    <div id="gameOverText">Game Over</div>
-    <button id="restartBtn" onclick="restartGame()">Restart</button>
-    <p id="instructions">Press tap to jump and double tap to double jump</p>
+    <h1>Kyle the Dino</h1>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="gameOver">GAME OVER!</div>
+        <button id="restartButton">RESTART</button>
+    </div>
+    <p id="instructions">Tap to jump and double tap to double jump</p>
+    <p id="credit" style="position: absolute; bottom: -10px; width: 100%; color: #333; font-size: 12px; font-family: 'Press Start 2P', cursive;">Dino Game by Mohsin</p>
+    
     <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight * 0.6;
+        // Add mute button functionality
+        const muteButton = document.getElementById('muteButton');
+        const restartButton = document.getElementById('restartButton');
+        const gameOverText = document.getElementById('gameOver');
+        let isMuted = false;
         
-        let dino = { x: 50, y: canvas.height - 50, width: 40, height: 40, dy: 0, jumping: false, canDoubleJump: false };
-        let obstacles = [];
-        let score = 0;
-        let gameRunning = true;
-        
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw background elements
-            ctx.strokeStyle = "gray";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(100, canvas.height - 20);
-            ctx.lineTo(200, canvas.height - 50);
-            ctx.lineTo(300, canvas.height - 20);
-            ctx.stroke();
-            
-            ctx.beginPath();
-            ctx.arc(500, 50, 20, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Draw dino
-            ctx.fillStyle = "green";
-            ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
-            
-            // Draw obstacles
-            ctx.fillStyle = "brown";
-            obstacles.forEach(obstacle => {
-                ctx.fillRect(obstacle.x, obstacle.y + 10, obstacle.width, obstacle.height); // Adjusted obstacle position
-            });
-        }
-        
-        function update() {
-            if (!gameRunning) return;
-            
-            // Dino jump logic
-            if (dino.jumping) {
-                dino.y += dino.dy;
-                dino.dy += 0.4; // Reduced gravity slightly more
-                
-                if (dino.y >= canvas.height - 50) {
-                    dino.y = canvas.height - 50;
-                    dino.jumping = false;
-                    dino.canDoubleJump = false;
+        muteButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent event from bubbling
+            isMuted = !isMuted;
+            const music = document.getElementById('gameMusic');
+            if (music) {
+                music.muted = isMuted;
+                if (music.paused && !isMuted) {
+                    music.play().catch(e => console.log('Playback failed:', e));
                 }
+                muteButton.textContent = isMuted ? '🔇 Muted' : '🔊 Sound';
             }
-            
-            // Move obstacles
-            obstacles.forEach(obstacle => {
-                obstacle.x -= obstacle.speed;
-            });
-            
-            // Remove off-screen obstacles and add new ones
-            if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width - 200) {
-                obstacles.push({ x: canvas.width, y: canvas.height - 50, width: 20, height: 30, speed: 2 });
-            }
-            
-            if (obstacles[0].x < -20) {
-                obstacles.shift();
-                score++;
-                document.getElementById("score").innerText = "Score: " + score;
-            }
-            
-            // Check collision
-            obstacles.forEach(obstacle => {
-                if (
-                    dino.x < obstacle.x + obstacle.width &&
-                    dino.x + dino.width > obstacle.x &&
-                    dino.y < obstacle.y + obstacle.height &&
-                    dino.y + dino.height > obstacle.y
-                ) {
-                    gameOver();
-                }
-            });
-        }
-        
-        function gameLoop() {
-            update();
-            draw();
-            if (gameRunning) requestAnimationFrame(gameLoop);
-        }
-        
-        function jump() {
-            if (!dino.jumping) {
-                dino.jumping = true;
-                dino.dy = -10;
-                dino.canDoubleJump = true;
-            } else if (dino.canDoubleJump) {
-                dino.dy = -8;
-                dino.canDoubleJump = false;
-            }
-        }
-        
-        function gameOver() {
-            gameRunning = false;
-            document.getElementById("restartBtn").style.display = "block";
-            document.getElementById("gameOverText").style.display = "block";
-        }
-        
-        function restartGame() {
-            dino.y = canvas.height - 50;
-            obstacles = [];
-            score = 0;
-            gameRunning = true;
-            document.getElementById("score").innerText = "Score: " + score;
-            document.getElementById("restartBtn").style.display = "none";
-            document.getElementById("gameOverText").style.display = "none";
-            gameLoop();
-        }
-        
-        document.addEventListener("keydown", (e) => {
-            if (e.code === "Space") jump();
         });
-        
-        document.addEventListener("touchstart", () => {
-            jump();
+
+        // Add touch event for mobile
+        muteButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            muteButton.click();
         });
-        
-        gameLoop();
+
+        restartButton.addEventListener('click', () => {
+            window.startGame();
+            restartButton.classList.remove('visible');
+            gameOverText.classList.remove('visible');
+        });
     </script>
+    <script src="game.js"></script>
 </body>
 </html>
