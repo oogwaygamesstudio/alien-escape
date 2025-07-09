@@ -41,21 +41,21 @@ let gameSpeedMultiplier = 1;
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Set canvas size
-canvas.width = 800;
-canvas.height = 400;
+// Set canvas size - Mobile-first responsive dimensions
+canvas.width = 414;   // Mobile-optimized width
+canvas.height = 300;  // Good aspect ratio for platformer gameplay
 
 // Game objects
 const dino = {
-    x: 100,
-    y: canvas.height - 100,
+    x: 60,                    // Adjusted for new canvas width 
+    y: canvas.height - 80,    // Adjusted for new ground position
     width: 40,
     height: 60
 };
 
 const obstacles = [];
 const ground = {
-    y: canvas.height - 40,
+    y: canvas.height - 40,    // Keep same relative position
     height: 40
 };
 
