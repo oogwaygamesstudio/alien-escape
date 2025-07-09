@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read access to scores for leaderboard
+    match /scores/{document} {
+      allow read: if true;
+      
+      // Allow write only with valid data
+      allow create: if resource == null
+        && request.auth == null  // No authentication required
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 20
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 1000000  // Max reasonable score
+        && request.resource.data.timestamp != null
+        && request.resource.data.date is string;
+      
+      // Prevent updates and deletes
+      allow update, delete: if false;
+    }
+  }
+} 

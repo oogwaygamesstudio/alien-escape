@@ -1,0 +1,43 @@
+# Firebase
+.firebaserc
+firebase.json
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Node modules (if using Firebase CLI)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build files
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+.tmp/
+temp/
+*.tmp
+
+# Firebase config backup (keep your real config private!)
+firebase-config-backup.js 

@@ -529,11 +529,20 @@ function gameOver() {
         console.error("Game over sound error:", error);
     }
     
-    // Show game over UI with animation
+    // Hide original game over elements
     const gameOverText = document.getElementById('gameOver');
     const restartButton = document.getElementById('restartButton');
-    gameOverText.classList.add('visible');
-    setTimeout(() => restartButton.classList.add('visible'), 500);
+    gameOverText.classList.remove('visible');
+    restartButton.classList.remove('visible');
+    
+    // Show the new high score screen after a brief delay
+    setTimeout(() => {
+        if (window.leaderboard && window.leaderboard.checkForHighScore) {
+            window.leaderboard.checkForHighScore(score);
+        } else {
+            console.error('Leaderboard not initialized yet! Score:', score);
+        }
+    }, 800); // Give time for the game over sound to play
 }
 
 function startGame() {
@@ -560,6 +569,11 @@ function startGame() {
     const restartButton = document.getElementById('restartButton');
     gameOverText.classList.remove('visible');
     restartButton.classList.remove('visible');
+    
+    // Hide high score screen
+    if (window.leaderboard) {
+        window.leaderboard.hideHighScoreScreen();
+    }
     
     // Restart music
     try {
