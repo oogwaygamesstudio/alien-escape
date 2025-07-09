@@ -277,80 +277,82 @@ function createDinoSprite(frame) {
     canvas.width = 44;
     canvas.height = 48;
 
-    function drawCuteDinoBody() {
-        // Main body - rounder and cuter
+    function drawCuteDinoBody(bodyOffsetY = 0) {
+        // Main body - rounder and cuter (with optional offset for stable running)
         ctx.fillStyle = '#4CAF50'; // Green dino
-        ctx.fillRect(8, 16, 18, 14);
-        ctx.fillRect(6, 18, 22, 10);
+        ctx.fillRect(8, 16 + bodyOffsetY, 18, 14);
+        ctx.fillRect(6, 18 + bodyOffsetY, 22, 10);
         
         // Head - bigger and rounder
-        ctx.fillRect(22, 8, 16, 16);
-        ctx.fillRect(20, 10, 20, 12);
+        ctx.fillRect(22, 8 + bodyOffsetY, 16, 16);
+        ctx.fillRect(20, 10 + bodyOffsetY, 20, 12);
         
         // Cute eyes
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(26, 12, 4, 4);
-        ctx.fillRect(32, 12, 4, 4);
+        ctx.fillRect(26, 12 + bodyOffsetY, 4, 4);
+        ctx.fillRect(32, 12 + bodyOffsetY, 4, 4);
         
         // Eye pupils
         ctx.fillStyle = '#000000';
-        ctx.fillRect(27, 13, 2, 2);
-        ctx.fillRect(33, 13, 2, 2);
+        ctx.fillRect(27, 13 + bodyOffsetY, 2, 2);
+        ctx.fillRect(33, 13 + bodyOffsetY, 2, 2);
         
         // Cute smile
         ctx.fillStyle = '#000000';
-        ctx.fillRect(28, 18, 1, 1);
-        ctx.fillRect(29, 19, 1, 1);
-        ctx.fillRect(30, 19, 1, 1);
-        ctx.fillRect(31, 18, 1, 1);
+        ctx.fillRect(28, 18 + bodyOffsetY, 1, 1);
+        ctx.fillRect(29, 19 + bodyOffsetY, 1, 1);
+        ctx.fillRect(30, 19 + bodyOffsetY, 1, 1);
+        ctx.fillRect(31, 18 + bodyOffsetY, 1, 1);
         
         // Belly
         ctx.fillStyle = '#81C784';
-        ctx.fillRect(10, 20, 14, 8);
+        ctx.fillRect(10, 20 + bodyOffsetY, 14, 8);
         
         // Tail
         ctx.fillStyle = '#4CAF50';
-        ctx.fillRect(4, 18, 6, 4);
-        ctx.fillRect(2, 16, 4, 6);
+        ctx.fillRect(4, 18 + bodyOffsetY, 6, 4);
+        ctx.fillRect(2, 16 + bodyOffsetY, 4, 6);
         
         // Cute spikes on back
         ctx.fillStyle = '#2E7D32';
-        ctx.fillRect(12, 14, 2, 4);
-        ctx.fillRect(16, 12, 2, 4);
-        ctx.fillRect(20, 14, 2, 4);
+        ctx.fillRect(12, 14 + bodyOffsetY, 2, 4);
+        ctx.fillRect(16, 12 + bodyOffsetY, 2, 4);
+        ctx.fillRect(20, 14 + bodyOffsetY, 2, 4);
     }
 
     function drawDinoRun1() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawCuteDinoBody();
-        // Back leg - running position
+        // Keep body stable, move legs relative to ground
+        drawCuteDinoBody(0);
         ctx.fillStyle = '#4CAF50';
-        ctx.fillRect(12, 30, 4, 14);
-        ctx.fillRect(10, 42, 6, 2); // foot
-        // Front leg
-        ctx.fillRect(22, 32, 4, 12);
-        ctx.fillRect(20, 42, 6, 2); // foot
+        // Back leg - LIFTED UP (running position)
+        ctx.fillRect(12, 32, 4, 8); // Short leg (lifted up)
+        ctx.fillRect(10, 38, 6, 2); // foot higher up (not touching ground)
+        // Front leg - DOWN (touching ground)
+        ctx.fillRect(22, 30, 4, 14); // Long leg (extended down)
+        ctx.fillRect(20, 42, 6, 2); // foot at ground level
     }
 
     function drawDinoRun2() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawCuteDinoBody();
-        // Back leg
+        // Keep body stable, move legs relative to ground
+        drawCuteDinoBody(0);
         ctx.fillStyle = '#4CAF50';
-        ctx.fillRect(12, 32, 4, 12);
-        ctx.fillRect(10, 42, 6, 2); // foot
-        // Front leg - running position
-        ctx.fillRect(22, 30, 4, 14);
-        ctx.fillRect(20, 42, 6, 2); // foot
+        // Back leg - DOWN (touching ground)
+        ctx.fillRect(12, 30, 4, 14); // Long leg (extended down)
+        ctx.fillRect(10, 42, 6, 2); // foot at ground level
+        // Front leg - LIFTED UP (running position)
+        ctx.fillRect(22, 32, 4, 8); // Short leg (lifted up)
+        ctx.fillRect(20, 38, 6, 2); // foot higher up (not touching ground)
     }
 
     function drawDinoJump() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawCuteDinoBody();
+        drawCuteDinoBody(-2); // Slight body adjustment for jump
         // Both legs tucked for jumping
         ctx.fillStyle = '#4CAF50';
-        ctx.fillRect(12, 30, 4, 8);
-        ctx.fillRect(22, 30, 4, 8);
+        ctx.fillRect(12, 28, 4, 10); // Tucked legs
+        ctx.fillRect(22, 28, 4, 10);
     }
 
     switch(frame) {
@@ -615,16 +617,16 @@ function createFireballSprite() {
     canvas.width = FIREBALL_SIZE;
     canvas.height = FIREBALL_SIZE;
 
-    // Fireball outer glow
-    ctx.fillStyle = '#FF4500'; // Orange-red
+    // Blue fireball outer glow
+    ctx.fillStyle = '#1E88E5'; // Blue
     ctx.fillRect(1, 1, FIREBALL_SIZE - 2, FIREBALL_SIZE - 2);
     
-    // Fireball core
-    ctx.fillStyle = '#FF6347'; // Tomato red
+    // Blue fireball core
+    ctx.fillStyle = '#42A5F5'; // Light blue
     ctx.fillRect(2, 2, FIREBALL_SIZE - 4, FIREBALL_SIZE - 4);
     
-    // Hot center
-    ctx.fillStyle = '#FFFF00'; // Yellow center
+    // Hot blue center
+    ctx.fillStyle = '#81D4FA'; // Cyan-blue center
     ctx.fillRect(4, 4, FIREBALL_SIZE - 8, FIREBALL_SIZE - 8);
 
     return canvas;
@@ -641,7 +643,7 @@ let fishSprite = createFishSprite();
 let birdSprite = createBirdSprite();
 let platformSprite = createPlatformSprite();
 let bossSprite = createBossSprite(1); // Initial boss sprite
-let fireballSprite = createFireballSprite();
+let fireballSprite = createFireballSprite(); // Now blue fireballs
 
 // Create star array
 const stars = [];

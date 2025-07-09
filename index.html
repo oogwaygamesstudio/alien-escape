@@ -137,25 +137,25 @@
         /* Boss Defeated Text */
         #bossDefeated {
             position: absolute;
-            top: 50%;
+            top: 20px; /* Position at top like boss warnings */
             left: 50%;
-            transform: translate(-50%, -50%) scale(0);
+            transform: translateX(-50%) scale(0);
             font-family: 'Press Start 2P', cursive;
-            font-size: 40px;
+            font-size: 16px; /* Smaller size so it doesn't block gameplay */
             color: #4CAF50;
             opacity: 0;
             transition: all 0.3s;
             text-shadow: 
-                -2px -2px 0 #fff,
-                2px -2px 0 #fff,
-                -2px 2px 0 #fff,
-                2px 2px 0 #fff,
-                4px 4px 0 #000;
+                -1px -1px 0 #fff,
+                1px -1px 0 #fff,
+                -1px 1px 0 #fff,
+                1px 1px 0 #fff,
+                2px 2px 0 #000;
             pointer-events: none;
             z-index: 1500;
         }
         #bossDefeated.visible {
-            transform: translate(-50%, -50%) scale(1);
+            transform: translateX(-50%) scale(1);
             opacity: 1;
         }
         
