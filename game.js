@@ -288,25 +288,25 @@ function createBirdSprite() {
     canvas.width = 24;
     canvas.height = 16;
 
-    // Bird body
-    ctx.fillStyle = '#607D8B';
+    // Bird body - Light red
+    ctx.fillStyle = '#FF8A80';
     ctx.fillRect(6, 8, 12, 4);
     ctx.fillRect(8, 6, 8, 8);
     
-    // Bird head
-    ctx.fillStyle = '#546E7A';
+    // Bird head - Darker light red
+    ctx.fillStyle = '#FF5252';
     ctx.fillRect(16, 6, 6, 6);
     
-    // Wings
-    ctx.fillStyle = '#455A64';
+    // Wings - Medium red
+    ctx.fillStyle = '#F44336';
     ctx.fillRect(4, 6, 8, 2);
     ctx.fillRect(12, 6, 8, 2);
     
-    // Eye
+    // Eye - Black (kept same for visibility)
     ctx.fillStyle = '#000000';
     ctx.fillRect(18, 7, 1, 1);
     
-    // Beak
+    // Beak - Orange (kept same for contrast)
     ctx.fillStyle = '#FFA726';
     ctx.fillRect(22, 8, 2, 2);
 
