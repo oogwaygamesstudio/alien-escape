@@ -1,7 +1,7 @@
 // Game constants
 const GRAVITY = 0.5;
 const JUMP_FORCE = -12;
-const GAME_SPEED = 4;
+let GAME_SPEED = 4;
 const MIN_OBSTACLE_SPACING = 1500;
 const MAX_OBSTACLE_SPACING = 2500;
 let OBSTACLE_SPAWN_INTERVAL = 2000;
@@ -10,15 +10,19 @@ let OBSTACLE_SPAWN_INTERVAL = 2000;
 const ANIMATION_SPEED = 100; // ms per frame
 let lastFrameTime = 0;
 
-// Cloud settings
-const NUM_CLOUDS = 6;
+// Cloud settings - reduced for mobile performance
+const NUM_CLOUDS = window.innerWidth < 768 ? 3 : 6;
 const CLOUD_SPEED = 0.5;
 const NUM_HILLS = 3;
 const WATER_WAVE_SPEED = 0.02;
 
-// Lily pad settings
-const NUM_LILY_PADS = 4;
-let lilyPads = [];
+// Fish settings for water animation
+const NUM_FISH = window.innerWidth < 768 ? 2 : 4;
+let fish = [];
+
+// Performance settings
+const isMobile = window.innerWidth < 768;
+const PERFORMANCE_MODE = isMobile;
 
 // Game state
 let score = 0;
@@ -30,6 +34,8 @@ let dinoFrame = 1;
 let lastObstacleSpawn = 0;
 let lastTapTime = 0;
 let clouds = [];
+let birds = []; // Flying obstacles
+let gameSpeedMultiplier = 1;
 
 // Get canvas and context
 const canvas = document.getElementById('gameCanvas');
@@ -95,63 +101,94 @@ function initMusic() {
     }
 }
 
-// Sprite generation code
+// Sprite generation code - Improved cute dino
 function createDinoSprite(frame) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 44;
     canvas.height = 48;
 
-    ctx.fillStyle = '#535353';
-
-    function drawDinoBody() {
-        // Main body
-        ctx.fillRect(8, 14, 20, 16);
-        // Neck and head
-        ctx.fillRect(22, 10, 12, 12);
-        ctx.fillRect(26, 8, 10, 14);
-        // Head details
-        ctx.fillRect(32, 6, 8, 12);
-        // Eye
+    function drawCuteDinoBody() {
+        // Main body - rounder and cuter
+        ctx.fillStyle = '#4CAF50'; // Green dino
+        ctx.fillRect(8, 16, 18, 14);
+        ctx.fillRect(6, 18, 22, 10);
+        
+        // Head - bigger and rounder
+        ctx.fillRect(22, 8, 16, 16);
+        ctx.fillRect(20, 10, 20, 12);
+        
+        // Cute eyes
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(36, 8, 2, 2);
-        ctx.fillStyle = '#535353';
+        ctx.fillRect(26, 12, 4, 4);
+        ctx.fillRect(32, 12, 4, 4);
+        
+        // Eye pupils
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(27, 13, 2, 2);
+        ctx.fillRect(33, 13, 2, 2);
+        
+        // Cute smile
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(28, 18, 1, 1);
+        ctx.fillRect(29, 19, 1, 1);
+        ctx.fillRect(30, 19, 1, 1);
+        ctx.fillRect(31, 18, 1, 1);
+        
+        // Belly
+        ctx.fillStyle = '#81C784';
+        ctx.fillRect(10, 20, 14, 8);
+        
         // Tail
-        ctx.fillRect(4, 16, 6, 4);  // Tail base
-        ctx.fillRect(2, 14, 4, 6);  // Tail tip
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(4, 18, 6, 4);
+        ctx.fillRect(2, 16, 4, 6);
+        
+        // Cute spikes on back
+        ctx.fillStyle = '#2E7D32';
+        ctx.fillRect(12, 14, 2, 4);
+        ctx.fillRect(16, 12, 2, 4);
+        ctx.fillRect(20, 14, 2, 4);
     }
 
     function drawDinoRun1() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawDinoBody();
-        // Back leg
-        ctx.fillRect(12, 30, 4, 16);
+        drawCuteDinoBody();
+        // Back leg - running position
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(12, 30, 4, 14);
+        ctx.fillRect(10, 42, 6, 2); // foot
         // Front leg
-        ctx.fillRect(22, 30, 4, 12);
+        ctx.fillRect(22, 32, 4, 12);
+        ctx.fillRect(20, 42, 6, 2); // foot
     }
 
     function drawDinoRun2() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawDinoBody();
+        drawCuteDinoBody();
         // Back leg
-        ctx.fillRect(12, 30, 4, 12);
-        // Front leg
-        ctx.fillRect(22, 30, 4, 16);
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(12, 32, 4, 12);
+        ctx.fillRect(10, 42, 6, 2); // foot
+        // Front leg - running position
+        ctx.fillRect(22, 30, 4, 14);
+        ctx.fillRect(20, 42, 6, 2); // foot
     }
 
     function drawDinoJump() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawDinoBody();
-        // Both legs tucked
-        ctx.fillRect(12, 30, 4, 10);
-        ctx.fillRect(22, 30, 4, 10);
+        drawCuteDinoBody();
+        // Both legs tucked for jumping
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(12, 30, 4, 8);
+        ctx.fillRect(22, 30, 4, 8);
     }
 
     switch(frame) {
         case 'run1': drawDinoRun1(); break;
         case 'run2': drawDinoRun2(); break;
         case 'jump': drawDinoJump(); break;
-        default: drawDinoBody();
+        default: drawCuteDinoBody();
     }
     return canvas;
 }
@@ -213,35 +250,65 @@ function createCloudSprite() {
     return canvas;
 }
 
-function createLilyPadSprite() {
+function createFishSprite() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = 32;
+    canvas.width = 20;
+    canvas.height = 12;
+
+    // Fish body
+    ctx.fillStyle = '#FF9800';
+    ctx.fillRect(4, 4, 10, 4);
+    ctx.fillRect(6, 3, 6, 6);
+    
+    // Fish tail
+    ctx.fillStyle = '#FF7043';
+    ctx.fillRect(0, 3, 4, 2);
+    ctx.fillRect(2, 5, 2, 2);
+    
+    // Fish head
+    ctx.fillStyle = '#FFB74D';
+    ctx.fillRect(12, 4, 4, 4);
+    
+    // Eye
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(13, 5, 1, 1);
+    
+    // Fins
+    ctx.fillStyle = '#FF7043';
+    ctx.fillRect(8, 2, 2, 1);
+    ctx.fillRect(8, 9, 2, 1);
+
+    return canvas;
+}
+
+function createBirdSprite() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 24;
     canvas.height = 16;
 
-    const colors = {
-        pad: '#2E7D32',
-        highlight: '#43A047',
-        flower: '#E91E63'
-    };
-
-    // Draw main pad
-    ctx.fillStyle = colors.pad;
-    ctx.beginPath();
-    ctx.ellipse(16, 8, 14, 6, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Add highlight
-    ctx.fillStyle = colors.highlight;
-    ctx.beginPath();
-    ctx.ellipse(16, 7, 10, 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Add small flower
-    ctx.fillStyle = colors.flower;
-    ctx.beginPath();
-    ctx.arc(22, 6, 2, 0, Math.PI * 2);
-    ctx.fill();
+    // Bird body
+    ctx.fillStyle = '#607D8B';
+    ctx.fillRect(6, 8, 12, 4);
+    ctx.fillRect(8, 6, 8, 8);
+    
+    // Bird head
+    ctx.fillStyle = '#546E7A';
+    ctx.fillRect(16, 6, 6, 6);
+    
+    // Wings
+    ctx.fillStyle = '#455A64';
+    ctx.fillRect(4, 6, 8, 2);
+    ctx.fillRect(12, 6, 8, 2);
+    
+    // Eye
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(18, 7, 1, 1);
+    
+    // Beak
+    ctx.fillStyle = '#FFA726';
+    ctx.fillRect(22, 8, 2, 2);
 
     return canvas;
 }
@@ -253,7 +320,8 @@ let dinoJump = createDinoSprite('jump');
 let cactus = createCactusSprite();
 let groundTexture = createGroundSprite();
 let cloudSprite = createCloudSprite();
-let lilyPadSprite = createLilyPadSprite();
+let fishSprite = createFishSprite();
+let birdSprite = createBirdSprite();
 
 // Create star array
 const stars = [];
@@ -282,13 +350,16 @@ function initClouds() {
     }
 }
 
-// Initialize lily pads
-function initLilyPads() {
-    for (let i = 0; i < NUM_LILY_PADS; i++) {
-        lilyPads.push({
+// Initialize fish for water animation
+function initFish() {
+    for (let i = 0; i < NUM_FISH; i++) {
+        fish.push({
             x: Math.random() * canvas.width,
-            y: canvas.height - Math.random() * 60 - 20,
-            speed: GAME_SPEED * 0.8
+            y: canvas.height - Math.random() * 40 - 10,
+            speed: GAME_SPEED * 0.3 + Math.random() * 0.5,
+            size: 0.5 + Math.random() * 0.5,
+            flipX: Math.random() < 0.5,
+            animFrame: Math.random() * Math.PI * 2
         });
     }
 }
@@ -315,66 +386,94 @@ function jump() {
             canDoubleJump = true;
             velocityY = JUMP_FORCE;
         } else if (canDoubleJump) {
-            velocityY = JUMP_FORCE * 0.8;
+            velocityY = JUMP_FORCE * 0.9; // Improved double jump force
             canDoubleJump = false;
         }
+    }
+}
+
+function doubleJump() {
+    if (!isGameOver && canDoubleJump) {
+        velocityY = JUMP_FORCE * 0.9;
+        canDoubleJump = false;
     }
 }
 
 function spawnObstacle() {
     const now = Date.now();
     if (now - lastObstacleSpawn > OBSTACLE_SPAWN_INTERVAL) {
+        // Calculate speed multiplier with limit after score 40
+        if (score <= 40) {
+            gameSpeedMultiplier = 1 + (score * 0.02);
+        } else {
+            gameSpeedMultiplier = 1.8; // Cap at 1.8x speed
+        }
+        
+        const currentSpeed = GAME_SPEED * gameSpeedMultiplier;
+        
         // Random size between 0.7 and 1.3
         const size = 0.7 + Math.random() * 0.6;
         
         // Random height variation
         const heightVariation = Math.random() * 10 - 5; // ±5 pixels
 
-        // Random horizontal position offset
-        const xOffset = Math.random() * 100; // Random offset up to 100 pixels
+        // Ensure minimum spacing for jumpability
+        const minSpacing = 200; // Minimum space between obstacles
+        const xOffset = Math.random() * 50; // Reduced random offset
 
         obstacles.push({
-            x: canvas.width + xOffset,
+            x: canvas.width + xOffset + minSpacing,
             y: ground.y - (40 * size) + heightVariation,
             width: 20 * size,
             height: 40 * size,
             size: size,
-            speed: GAME_SPEED * (0.8 + Math.random() * 0.4) // Variable speed
+            speed: currentSpeed * (0.9 + Math.random() * 0.2) // Reduced speed variation
         });
+        
+        // Spawn birds after score 20
+        if (score > 20 && Math.random() < 0.3) {
+            birds.push({
+                x: canvas.width + 100,
+                y: ground.y - 80 - Math.random() * 40,
+                width: 24,
+                height: 16,
+                speed: currentSpeed * 0.8
+            });
+        }
         
         lastObstacleSpawn = now;
         
-        // More random interval between obstacles
+        // Adjusted interval for better spacing
         OBSTACLE_SPAWN_INTERVAL = MIN_OBSTACLE_SPACING + Math.random() * (MAX_OBSTACLE_SPACING - MIN_OBSTACLE_SPACING);
         
-        // Spawn multiple obstacles with different patterns
+        // Spawn multiple obstacles with better spacing
         if (score > 10) {  // After score 10
-            const pattern = Math.floor(Math.random() * 3);  // 0, 1, or 2
+            const pattern = Math.floor(Math.random() * 4);  // 0, 1, 2, or 3
             
-            if (pattern === 1) {  // Two obstacles side by side
+            if (pattern === 1) {  // Two obstacles with proper spacing
                 const secondSize = 0.7 + Math.random() * 0.6;
-                const offset = 40 + Math.random() * 40;
+                const spacing = 80 + Math.random() * 60; // Increased spacing
                 
                 obstacles.push({
-                    x: canvas.width + xOffset + offset,
+                    x: canvas.width + xOffset + minSpacing + spacing,
                     y: ground.y - (40 * secondSize),
                     width: 20 * secondSize,
                     height: 40 * secondSize,
                     size: secondSize,
-                    speed: GAME_SPEED * (0.8 + Math.random() * 0.4)
+                    speed: currentSpeed * (0.9 + Math.random() * 0.2)
                 });
-            } else if (pattern === 2) {  // Three obstacles in a row
+            } else if (pattern === 2) {  // Three obstacles with gaps
                 for (let i = 1; i <= 2; i++) {
                     const extraSize = 0.7 + Math.random() * 0.6;
-                    const spacing = 60 + Math.random() * 40;
+                    const spacing = 100 + Math.random() * 50; // Better spacing
                     
                     obstacles.push({
-                        x: canvas.width + xOffset + (spacing * i),
+                        x: canvas.width + xOffset + minSpacing + (spacing * i),
                         y: ground.y - (40 * extraSize),
                         width: 20 * extraSize,
                         height: 40 * extraSize,
                         size: extraSize,
-                        speed: GAME_SPEED * (0.8 + Math.random() * 0.4)
+                        speed: currentSpeed * (0.9 + Math.random() * 0.2)
                     });
                 }
             }
@@ -393,14 +492,28 @@ function updateClouds() {
     });
 }
 
-function updateLilyPads() {
-    lilyPads.forEach(lily => {
-        lily.x -= lily.speed;
-        if (lily.x + 32 < 0) {
-            lily.x = canvas.width;
-            lily.y = canvas.height - Math.random() * 60 - 20;
+function updateFish() {
+    fish.forEach(f => {
+        f.x -= f.speed;
+        f.animFrame += 0.1;
+        if (f.x + 20 < 0) {
+            f.x = canvas.width;
+            f.y = canvas.height - Math.random() * 40 - 10;
+            f.speed = GAME_SPEED * 0.3 + Math.random() * 0.5;
         }
     });
+}
+
+function updateBirds() {
+    for (let i = birds.length - 1; i >= 0; i--) {
+        birds[i].x -= birds[i].speed;
+        if (birds[i].x + birds[i].width < 0) {
+            birds.splice(i, 1);
+        } else if (checkCollision(dino, birds[i])) {
+            gameOver();
+            return;
+        }
+    }
 }
 
 function gameOver() {
@@ -427,17 +540,19 @@ function startGame() {
     // Reset game state
     score = 0;
     obstacles.length = 0;
+    birds.length = 0;
     isGameOver = false;
     dino.y = ground.y - dino.height;
     isJumping = false;
     canDoubleJump = false;
     velocityY = 0;
     lastObstacleSpawn = Date.now();
+    gameSpeedMultiplier = 1;
     
     // Initialize game elements if needed
     if (stars.length === 0) initStars();
     if (clouds.length === 0) initClouds();
-    if (lilyPads.length === 0) initLilyPads();
+    if (fish.length === 0) initFish();
     if (hills.length === 0) initHills();
     
     // Hide game over UI
@@ -481,8 +596,11 @@ function update(currentTime) {
     // Update clouds
     updateClouds();
 
-    // Update lily pads
-    updateLilyPads();
+    // Update fish
+    updateFish();
+
+    // Update birds
+    updateBirds();
 
     // Spawn new obstacles
     spawnObstacle();
@@ -559,12 +677,32 @@ function draw() {
         ctx.fillRect(x, ground.y, 2, height);
     }
 
-    // Add darker water effect below ground
+    // Add animated water effect below ground
     const waterGradient = ctx.createLinearGradient(0, ground.y + ground.height, 0, canvas.height);
     waterGradient.addColorStop(0, '#1a2639');   // Darker blue that matches night theme
+    waterGradient.addColorStop(0.5, '#0f1827');
     waterGradient.addColorStop(1, '#0f1624');   // Even darker at bottom
     ctx.fillStyle = waterGradient;
     ctx.fillRect(0, ground.y + ground.height, canvas.width, canvas.height - (ground.y + ground.height));
+
+    // Draw water waves
+    ctx.fillStyle = 'rgba(42, 78, 123, 0.3)';
+    for (let x = 0; x < canvas.width; x += 20) {
+        const waveHeight = Math.sin((x + score) * 0.02) * 2;
+        ctx.fillRect(x, ground.y + ground.height + waveHeight, 20, 4);
+    }
+
+    // Draw fish
+    fish.forEach(f => {
+        ctx.save();
+        if (f.flipX) {
+            ctx.scale(-1, 1);
+            ctx.drawImage(fishSprite, -f.x - 20, f.y + Math.sin(f.animFrame) * 2, 20, 12);
+        } else {
+            ctx.drawImage(fishSprite, f.x, f.y + Math.sin(f.animFrame) * 2, 20, 12);
+        }
+        ctx.restore();
+    });
 
     // Draw dino
     const currentDinoSprite = isJumping ? dinoJump : (dinoFrame === 1 ? dinoRun1 : dinoRun2);
@@ -573,6 +711,11 @@ function draw() {
     // Draw obstacles
     for (const obstacle of obstacles) {
         ctx.drawImage(cactus, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+    }
+
+    // Draw birds
+    for (const bird of birds) {
+        ctx.drawImage(birdSprite, bird.x, bird.y, bird.width, bird.height);
     }
 
     // Draw score
@@ -637,6 +780,7 @@ window.startGame = startGame;
 // Start game
 initStars();
 initClouds();
+initFish();
 startGame();
 gameLoop();
 
