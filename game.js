@@ -39,6 +39,39 @@ let platforms = []; // Floating Mario-style platforms
 let lastPlatformSpawn = 0;
 let gameSpeedMultiplier = 1;
 
+// Invincibility power-up state
+let invincible = false;
+let invincibilityTimer = 0;
+let invincibilityChargesUsed = 0;
+const INVINCIBILITY_DURATION = 3000; // ms
+const INVINCIBILITY_SCORE_STEP = 50; // 1 charge per 50 score
+
+function getAvailableInvincibilityCharges() {
+    return Math.floor(score / INVINCIBILITY_SCORE_STEP) - invincibilityChargesUsed;
+}
+
+function activateInvincibility() {
+    if (invincible || getAvailableInvincibilityCharges() <= 0 || isGameOver) return;
+    
+    invincible = true;
+    invincibilityTimer = INVINCIBILITY_DURATION;
+    invincibilityChargesUsed++;
+    
+    console.log('🛡️ Invincibility activated! Duration:', INVINCIBILITY_DURATION/1000, 'seconds');
+    console.log('🔢 Charges remaining:', getAvailableInvincibilityCharges());
+}
+
+function updateInvincibility(deltaTime) {
+    if (invincible) {
+        invincibilityTimer -= deltaTime;
+        if (invincibilityTimer <= 0) {
+            invincible = false;
+            invincibilityTimer = 0;
+            console.log('🛡️ Invincibility ended');
+        }
+    }
+}
+
 // Boss system variables
 let boss = null;
 let bossActive = false;
@@ -87,7 +120,7 @@ const zenMusicSources = [
     'https://freesound.org/data/previews/626/626777_906409-lq.mp3',
     'https://www.orangefreesounds.com/wp-content/uploads/2018/11/zen-meditation-music.mp3',
     // Fallback: Generate simple tones if external sources fail
-    'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEA=='
+    'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEA=='
 ];
 
 let currentZenTrack = 0;
@@ -796,7 +829,7 @@ function updateBirds() {
         birds[i].x -= birds[i].speed;
         if (birds[i].x + birds[i].width < 0) {
             birds.splice(i, 1);
-        } else if (checkCollision(dino, birds[i])) {
+        } else if (checkCollision(dino, birds[i]) && !invincible) {
             gameOver();
             return;
         }
@@ -1014,7 +1047,7 @@ function updateFireballs() {
         }
         
         // Check collision with player
-        if (checkCollision(dino, fireball)) {
+        if (checkCollision(dino, fireball) && !invincible) {
             console.log('💥 Player hit by fireball!');
             gameOver();
             return;
@@ -1097,10 +1130,23 @@ function startGame() {
     
     // Restart music with new system
     playMusic();
+    invincible = false;
+    invincibilityTimer = 0;
+    invincibilityChargesUsed = 0;
 }
+
+// Add a proper lastUpdateTime variable for delta time calculation
+let lastUpdateTime = 0;
 
 function update(currentTime) {
     if (isGameOver) return;
+
+    // Calculate proper delta time
+    const deltaTime = currentTime - lastUpdateTime;
+    lastUpdateTime = currentTime;
+
+    // Update invincibility first (with proper delta time)
+    updateInvincibility(deltaTime);
 
     // Update animation frame based on time
     if (currentTime - lastFrameTime > ANIMATION_SPEED) {
@@ -1148,7 +1194,7 @@ function update(currentTime) {
         if (obstacles[i].x + obstacles[i].width < 0) {
             obstacles.splice(i, 1);
             score++;
-        } else if (checkCollision(dino, obstacles[i])) {
+        } else if (checkCollision(dino, obstacles[i]) && !invincible) {
             gameOver();
             return;
         }
@@ -1241,9 +1287,51 @@ function draw() {
         ctx.restore();
     });
 
-    // Draw dino
+    // Draw dino with enhanced invincibility effect
     const currentDinoSprite = isJumping ? dinoJump : (dinoFrame === 1 ? dinoRun1 : dinoRun2);
-    ctx.drawImage(currentDinoSprite, dino.x, dino.y, dino.width, dino.height);
+    if (invincible) {
+        // Multiple layers of effects for dramatic visibility
+        ctx.save();
+        
+        // Bright glow effect
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 40;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Pulsing brightness and color
+        const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+        ctx.globalAlpha = pulse;
+        ctx.filter = 'brightness(2) saturate(3) hue-rotate(45deg)';
+        
+        // Draw dino with golden tint
+        ctx.drawImage(currentDinoSprite, dino.x, dino.y, dino.width, dino.height);
+        ctx.restore();
+        
+        // Add sparkle effects around dino
+        for (let i = 0; i < 8; i++) {
+            const angle = (Date.now() / 200 + i * Math.PI / 4) % (Math.PI * 2);
+            const sparkleX = dino.x + dino.width/2 + Math.cos(angle) * 35;
+            const sparkleY = dino.y + dino.height/2 + Math.sin(angle) * 25;
+            const sparkleAlpha = Math.sin(Date.now() / 150 + i) * 0.5 + 0.5;
+            
+            ctx.save();
+            ctx.fillStyle = `rgba(255, 215, 0, ${sparkleAlpha})`;
+            ctx.beginPath();
+            ctx.arc(sparkleX, sparkleY, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        
+        // Normal dino on top for visibility
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.drawImage(currentDinoSprite, dino.x, dino.y, dino.width, dino.height);
+        ctx.restore();
+        
+    } else {
+        ctx.drawImage(currentDinoSprite, dino.x, dino.y, dino.width, dino.height);
+    }
 
     // Draw obstacles
     for (const obstacle of obstacles) {
@@ -1422,3 +1510,50 @@ gameLoop();
 
 // Initialize music system
 initMusic();
+
+// Fix the DOMContentLoaded event handler
+document.addEventListener('DOMContentLoaded', () => {
+    const invBtn = document.getElementById('invincibilityButton');
+    
+    function updateInvBtn() {
+        const charges = getAvailableInvincibilityCharges();
+        invBtn.setAttribute('data-charges', charges > 0 ? `x${charges}` : '');
+        invBtn.disabled = (charges <= 0 || invincible || isGameOver);
+        invBtn.style.opacity = invincible ? 0.6 : 0.95;
+    }
+    
+    // Prevent button from triggering jump
+    invBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+    
+    invBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!invBtn.disabled) {
+            activateInvincibility();
+            updateInvBtn();
+        }
+    });
+    
+    invBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!invBtn.disabled) {
+            activateInvincibility();
+            updateInvBtn();
+        }
+    });
+    
+    setInterval(updateInvBtn, 100); // Keep UI in sync more frequently
+    updateInvBtn();
+});
+
+// Fix the keyboard shortcut
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyV' && !isGameOver && !invincible && getAvailableInvincibilityCharges() > 0) {
+        e.preventDefault();
+        activateInvincibility();
+    }
+});
