@@ -39,6 +39,24 @@ let platforms = []; // Floating Mario-style platforms
 let lastPlatformSpawn = 0;
 let gameSpeedMultiplier = 1;
 
+// Boss system variables
+let boss = null;
+let bossActive = false;
+let bossSpawnTime = 0;
+let bossJumpTime = 0;
+let bossShootTime = 0;
+let bossLevel = 1;
+let fireballs = [];
+let lastBossScore = 0;
+
+// Boss constants
+const BOSS_WIDTH = 60;
+const BOSS_HEIGHT = 80;
+const BOSS_JUMP_FORCE = -8;
+const BOSS_GRAVITY = 0.4;
+const FIREBALL_SPEED = 3;
+const FIREBALL_SIZE = 12;
+
 // Get canvas and context
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -473,6 +491,112 @@ function createPlatformSprite() {
     return canvas;
 }
 
+function createBossSprite(level = 1) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = BOSS_WIDTH;
+    canvas.height = BOSS_HEIGHT;
+
+    // Boss colors based on level (gets stronger/different each time)
+    const colors = [
+        '#8B4513', // Brown (level 1)
+        '#FF4500', // Red-orange (level 2) 
+        '#8B0000', // Dark red (level 3)
+        '#4B0082', // Indigo (level 4)
+        '#2F4F4F', // Dark slate gray (level 5)
+        '#800080', // Purple (level 6)
+        '#000000'  // Black (level 7+)
+    ];
+    
+    const bodyColor = colors[Math.min(level - 1, colors.length - 1)];
+    const shellColor = level <= 2 ? '#228B22' : '#006400'; // Green shell, darker for higher levels
+    
+    // Shell/back
+    ctx.fillStyle = shellColor;
+    ctx.fillRect(10, 20, 40, 35);
+    
+    // Shell spikes
+    ctx.fillStyle = '#FFD700'; // Golden spikes
+    for (let i = 0; i < 5; i++) {
+        ctx.fillRect(15 + i * 7, 15, 4, 8);
+    }
+    
+    // Body
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(15, 35, 30, 25);
+    
+    // Head
+    ctx.fillRect(20, 10, 20, 20);
+    
+    // Horns
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(18, 5, 3, 8);
+    ctx.fillRect(39, 5, 3, 8);
+    
+    // Eyes (angry)
+    ctx.fillStyle = '#FF0000'; // Red eyes
+    ctx.fillRect(22, 15, 4, 4);
+    ctx.fillRect(34, 15, 4, 4);
+    
+    // Eye pupils
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(23, 16, 2, 2);
+    ctx.fillRect(35, 16, 2, 2);
+    
+    // Mouth (evil grin)
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(25, 22, 8, 2);
+    
+    // Teeth
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(26, 20, 2, 3);
+    ctx.fillRect(30, 20, 2, 3);
+    ctx.fillRect(34, 20, 2, 3);
+    
+    // Arms
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(5, 30, 10, 20);
+    ctx.fillRect(45, 30, 10, 20);
+    
+    // Claws
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(3, 47, 4, 3);
+    ctx.fillRect(53, 47, 4, 3);
+    
+    // Legs
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(18, 60, 8, 15);
+    ctx.fillRect(34, 60, 8, 15);
+    
+    // Feet
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(16, 73, 12, 4);
+    ctx.fillRect(32, 73, 12, 4);
+
+    return canvas;
+}
+
+function createFireballSprite() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = FIREBALL_SIZE;
+    canvas.height = FIREBALL_SIZE;
+
+    // Fireball outer glow
+    ctx.fillStyle = '#FF4500'; // Orange-red
+    ctx.fillRect(1, 1, FIREBALL_SIZE - 2, FIREBALL_SIZE - 2);
+    
+    // Fireball core
+    ctx.fillStyle = '#FF6347'; // Tomato red
+    ctx.fillRect(2, 2, FIREBALL_SIZE - 4, FIREBALL_SIZE - 4);
+    
+    // Hot center
+    ctx.fillStyle = '#FFFF00'; // Yellow center
+    ctx.fillRect(4, 4, FIREBALL_SIZE - 8, FIREBALL_SIZE - 8);
+
+    return canvas;
+}
+
 // Load sprites
 let dinoRun1 = createDinoSprite('run1');
 let dinoRun2 = createDinoSprite('run2');
@@ -483,6 +607,8 @@ let cloudSprite = createCloudSprite();
 let fishSprite = createFishSprite();
 let birdSprite = createBirdSprite();
 let platformSprite = createPlatformSprite();
+let bossSprite = createBossSprite(1); // Initial boss sprite
+let fireballSprite = createFireballSprite();
 
 // Create star array
 const stars = [];
@@ -750,6 +876,166 @@ function checkPlatformLanding(dino, platform) {
            velocityY >= 0;                                    // Only when falling or at peak of jump
 }
 
+// Boss System Functions
+function shouldSpawnBoss() {
+    // Boss appears at score 75, 150, 225, etc. up to 1000
+    if (score < 75 || score > 1000) return false;
+    
+    // Check if we've reached a boss milestone
+    const bossScores = [75, 150, 225, 300, 375, 450, 525, 600, 675, 750, 825, 900, 975, 1000];
+    return bossScores.includes(score) && score > lastBossScore;
+}
+
+function spawnBoss() {
+    if (!bossActive && shouldSpawnBoss()) {
+        // Calculate boss level based on score (every 75 points)
+        bossLevel = Math.floor(score / 75);
+        
+        // Create new boss sprite with current level
+        bossSprite = createBossSprite(bossLevel);
+        
+        // Boss duration: 15s + 5s for each level above 1
+        const baseDuration = 15000; // 15 seconds
+        const extraDuration = (bossLevel - 1) * 5000; // +5s per level
+        const bossDuration = baseDuration + extraDuration;
+        
+        boss = {
+            x: canvas.width - BOSS_WIDTH - 20, // Right edge
+            y: ground.y - BOSS_HEIGHT,
+            width: BOSS_WIDTH,
+            height: BOSS_HEIGHT,
+            velocityY: 0,
+            isJumping: false,
+            level: bossLevel,
+            duration: bossDuration,
+            spawnTime: Date.now()
+        };
+        
+        bossActive = true;
+        bossSpawnTime = performance.now();
+        bossJumpTime = performance.now() + Math.random() * 3000 + 2000; // Jump in 2-5 seconds
+        bossShootTime = performance.now() + Math.random() * 2000 + 1000; // Shoot in 1-3 seconds
+        lastBossScore = score;
+        
+        console.log(`🧌 Boss Level ${bossLevel} spawned! Duration: ${bossDuration/1000}s`);
+    }
+}
+
+function updateBoss(currentTime) {
+    if (!bossActive || !boss) return;
+    
+    // Check if boss duration has ended
+    if (currentTime - bossSpawnTime > boss.duration) {
+        bossActive = false;
+        boss = null;
+        console.log('🧌 Boss disappeared!');
+        showBossDefeated();
+        return;
+    }
+    
+    // Boss jumping behavior
+    if (currentTime > bossJumpTime && !boss.isJumping) {
+        boss.isJumping = true;
+        boss.velocityY = BOSS_JUMP_FORCE;
+        // Schedule next jump
+        bossJumpTime = currentTime + Math.random() * 4000 + 3000; // 3-7 seconds
+        console.log('🧌 Boss jumped!');
+    }
+    
+    // Update boss physics (jumping)
+    if (boss.isJumping) {
+        boss.y += boss.velocityY;
+        boss.velocityY += BOSS_GRAVITY;
+        
+        if (boss.y >= ground.y - boss.height) {
+            boss.y = ground.y - boss.height;
+            boss.isJumping = false;
+            boss.velocityY = 0;
+        }
+    }
+    
+    // Boss shooting behavior
+    if (currentTime > bossShootTime) {
+        shootFireball();
+        // Schedule next shot - faster for higher levels
+        const baseInterval = 3000; // 3 seconds
+        const levelSpeedup = (boss.level - 1) * 300; // 0.3s faster per level
+        const shootInterval = Math.max(baseInterval - levelSpeedup, 1000); // Minimum 1 second
+        bossShootTime = currentTime + Math.random() * shootInterval + 500;
+        console.log('🔥 Boss shooting scheduled for:', (bossShootTime - currentTime)/1000, 'seconds');
+    }
+}
+
+function shootFireball() {
+    if (!boss) return;
+    
+    // Calculate trajectory toward player
+    const startX = boss.x - 10;
+    const startY = boss.y + boss.height / 2;
+    const targetX = dino.x + dino.width / 2;
+    const targetY = dino.y + dino.height / 2;
+    
+    // Calculate direction
+    const dx = targetX - startX;
+    const dy = targetY - startY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Normalize and apply speed
+    const velocityX = (dx / distance) * FIREBALL_SPEED;
+    const velocityY = (dy / distance) * FIREBALL_SPEED;
+    
+    fireballs.push({
+        x: startX,
+        y: startY,
+        width: FIREBALL_SIZE,
+        height: FIREBALL_SIZE,
+        velocityX: velocityX,
+        velocityY: velocityY,
+        rotation: 0
+    });
+    
+    console.log('🔥 Boss shot fireball!');
+}
+
+function updateFireballs() {
+    for (let i = fireballs.length - 1; i >= 0; i--) {
+        const fireball = fireballs[i];
+        
+        // Move fireball
+        fireball.x += fireball.velocityX;
+        fireball.y += fireball.velocityY;
+        fireball.rotation += 0.2; // Spinning effect
+        
+        // Remove if off screen
+        if (fireball.x < -50 || fireball.x > canvas.width + 50 || 
+            fireball.y < -50 || fireball.y > canvas.height + 50) {
+            fireballs.splice(i, 1);
+            continue;
+        }
+        
+        // Check collision with player
+        if (checkCollision(dino, fireball)) {
+            console.log('💥 Player hit by fireball!');
+            gameOver();
+            return;
+        }
+    }
+}
+
+function showBossDefeated() {
+    const bossDefeatedText = document.getElementById('bossDefeated');
+    
+    // Show the boss defeated message
+    bossDefeatedText.classList.add('visible');
+    
+    // Hide it after 2 seconds
+    setTimeout(() => {
+        bossDefeatedText.classList.remove('visible');
+    }, 2000);
+    
+    console.log('✅ Boss defeated message shown!');
+}
+
 function gameOver() {
     isGameOver = true;
     pauseMusic(); // Use new music system
@@ -784,6 +1070,13 @@ function startGame() {
     lastObstacleSpawn = Date.now();
     lastPlatformSpawn = Date.now();
     gameSpeedMultiplier = 1;
+    
+    // Reset boss system
+    boss = null;
+    bossActive = false;
+    bossLevel = 1;
+    fireballs.length = 0;
+    lastBossScore = 0;
     
     // Initialize game elements if needed
     if (stars.length === 0) initStars();
@@ -841,8 +1134,13 @@ function update(currentTime) {
     // Spawn new obstacles
     spawnObstacle();
     
-    // Spawn platforms (after score 100)
+    // Spawn platforms (after score 25)
     spawnPlatform();
+    
+    // Boss system
+    spawnBoss();
+    updateBoss(currentTime);
+    updateFireballs();
 
     // Update obstacles with individual speeds
     for (let i = obstacles.length - 1; i >= 0; i--) {
@@ -962,6 +1260,47 @@ function draw() {
         ctx.drawImage(platformSprite, platform.x, platform.y, platform.width, platform.height);
     }
 
+    // Draw boss
+    if (bossActive && boss) {
+        // Flip boss horizontally to face the player
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(bossSprite, -(boss.x + boss.width), boss.y, boss.width, boss.height);
+        ctx.restore();
+        
+        // Boss health/timer indicator
+        const timeLeft = Math.max(0, boss.duration - (performance.now() - bossSpawnTime));
+        const healthBarWidth = 60;
+        const healthBarHeight = 4;
+        const healthX = boss.x;
+        const healthY = boss.y - 10;
+        
+        // Health bar background
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+        ctx.fillRect(healthX, healthY, healthBarWidth, healthBarHeight);
+        
+        // Health bar fill
+        const healthPercent = timeLeft / boss.duration;
+        ctx.fillStyle = healthPercent > 0.5 ? '#FF4500' : '#FF0000';
+        ctx.fillRect(healthX, healthY, healthBarWidth * healthPercent, healthBarHeight);
+        
+        // Boss level indicator
+        ctx.fillStyle = '#FFD700';
+        ctx.font = '8px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText(`LV${boss.level}`, boss.x + boss.width/2, boss.y - 15);
+        ctx.textAlign = 'left';
+    }
+
+    // Draw fireballs
+    for (const fireball of fireballs) {
+        ctx.save();
+        ctx.translate(fireball.x + fireball.width/2, fireball.y + fireball.height/2);
+        ctx.rotate(fireball.rotation);
+        ctx.drawImage(fireballSprite, -fireball.width/2, -fireball.height/2, fireball.width, fireball.height);
+        ctx.restore();
+    }
+
     // Draw score
     ctx.fillStyle = '#FFF';  // White text for night theme
     ctx.font = '12px "Press Start 2P"';
@@ -979,6 +1318,33 @@ function draw() {
         ctx.font = '8px "Press Start 2P"';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.fillText('🎵 Zen music playing', canvas.width - 20, 35);
+    }
+    
+    // Boss warning/indicator
+    if (bossActive && boss) {
+        ctx.font = '10px "Press Start 2P"';
+        ctx.fillStyle = '#FF4500';
+        ctx.textAlign = 'center';
+        const bossText = `🧌 BOSS BATTLE! Level ${boss.level}`;
+        ctx.fillText(bossText, canvas.width / 2, 30);
+        
+        // Boss timer
+        const timeLeft = Math.max(0, boss.duration - (performance.now() - bossSpawnTime));
+        const secondsLeft = Math.ceil(timeLeft / 1000);
+        ctx.font = '8px "Press Start 2P"';
+        ctx.fillStyle = '#FFD700';
+        ctx.fillText(`Time: ${secondsLeft}s`, canvas.width / 2, 45);
+        ctx.textAlign = 'left';
+    } else {
+        // Show warning when approaching boss score (every 75 points)
+        const nextBossScore = Math.ceil(score / 75) * 75;
+        if (nextBossScore >= 75 && nextBossScore <= 1000 && (nextBossScore - score) <= 10 && (nextBossScore - score) > 0) {
+            ctx.font = '8px "Press Start 2P"';
+            ctx.fillStyle = 'rgba(255, 69, 0, 0.8)';
+            ctx.textAlign = 'center';
+            ctx.fillText(`⚠️ Boss incoming in ${nextBossScore - score}!`, canvas.width / 2, 30);
+            ctx.textAlign = 'left';
+        }
     }
     
     ctx.textAlign = 'left';

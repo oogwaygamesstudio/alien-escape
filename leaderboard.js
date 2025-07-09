@@ -63,10 +63,10 @@ class Leaderboard {
     }
 
     initializeEventListeners() {
-        // Leaderboard button
-        document.getElementById('leaderboardBtn').addEventListener('click', () => {
-            this.showLeaderboard();
-        });
+        // Leaderboard button (commented out - button removed from UI)
+        // document.getElementById('leaderboardBtn').addEventListener('click', () => {
+        //     this.showLeaderboard();
+        // });
 
         // Close leaderboard
         document.getElementById('closeLeaderboard').addEventListener('click', () => {

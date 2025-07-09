@@ -134,6 +134,31 @@
             opacity: 1;
         }
         
+        /* Boss Defeated Text */
+        #bossDefeated {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-family: 'Press Start 2P', cursive;
+            font-size: 40px;
+            color: #4CAF50;
+            opacity: 0;
+            transition: all 0.3s;
+            text-shadow: 
+                -2px -2px 0 #fff,
+                2px -2px 0 #fff,
+                -2px 2px 0 #fff,
+                2px 2px 0 #fff,
+                4px 4px 0 #000;
+            pointer-events: none;
+            z-index: 1500;
+        }
+        #bossDefeated.visible {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+        }
+        
         /* High Score Screen */
         #highScoreScreen {
             position: fixed;
@@ -171,6 +196,8 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             opacity: 0;
             transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            overflow-y: auto;
+            overflow-x: hidden;
         }
         
         #highScoreScreen.show #highScoreContent {
@@ -352,7 +379,8 @@
             border: 2px solid #2196F3;
             border-radius: 8px;
             overflow-y: auto;
-            max-height: 300px;
+            max-height: 250px;
+            min-height: 200px;
         }
         
         #globalLeaderboardList {
@@ -505,14 +533,18 @@
             
             #gameOverSection {
                 min-width: auto;
+                flex-shrink: 0;
             }
             
             #leaderboardSection {
                 min-width: auto;
+                flex: 1;
+                min-height: 0;
             }
             
             #globalLeaderboardContainer {
-                max-height: 200px;
+                max-height: 180px;
+                min-height: 150px;
             }
             
             #gameOverTitle {
@@ -723,12 +755,12 @@
     </style>
 </head>
 <body>
-    <h1>Alien Escape</h1>
-    <button id="leaderboardBtn">🏆 TOP 10</button>
+
     
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         <div id="gameOver">GAME OVER!</div>
+        <div id="bossDefeated">SUAR DEFEATED!</div>
         <button id="restartButton">RESTART</button>
     </div>
     
@@ -809,8 +841,6 @@
         </div>
     </div>
     
-    <p id="instructions">Tap to jump, double tap to double jump. Click 🏆 for leaderboard!</p>
-    <p id="connectionStatus" style="font-size: 8px; color: rgba(255,255,255,0.6); margin-top: 5px;">🔌 Checking connection...</p>
     <p id="credit">Alien Game by Mohsin</p>
     
     <script>
