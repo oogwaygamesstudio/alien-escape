@@ -35,71 +35,189 @@ let lastObstacleSpawn = 0;
 let lastTapTime = 0;
 let clouds = [];
 let birds = []; // Flying obstacles
+let platforms = []; // Floating Mario-style platforms
+let lastPlatformSpawn = 0;
 let gameSpeedMultiplier = 1;
 
 // Get canvas and context
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Set canvas size - Mobile-first responsive dimensions
-canvas.width = 414;   // Mobile-optimized width
-canvas.height = 300;  // Good aspect ratio for platformer gameplay
+// Set canvas size
+canvas.width = 800;
+canvas.height = 400;
 
 // Game objects
 const dino = {
-    x: 60,                    // Adjusted for new canvas width 
-    y: canvas.height - 80,    // Adjusted for new ground position
+    x: 100,
+    y: canvas.height - 100,
     width: 40,
     height: 60
 };
 
 const obstacles = [];
 const ground = {
-    y: canvas.height - 40,    // Keep same relative position
+    y: canvas.height - 40,
     height: 40
 };
 
-// Create background music
-const music = new Audio();
-music.src = 'https://raw.githubusercontent.com/mohsin-code/dinosaur-game/main/assets/audio/background.mp3';  // Using a direct MP3 file
-music.loop = true;
-music.volume = 0.4;
-music.id = 'gameMusic';
+// 🎵 Simple & Reliable Zen Music System
+const zenMusicSources = [
+    // Real zen music from free sources - these will try to load
+    'https://www.bensound.com/bensound-music/bensound-relaxing.mp3',
+    'https://archive.org/download/RoyaltyFreeMusic/calm_meditation.mp3',
+    'https://freesound.org/data/previews/626/626777_906409-lq.mp3',
+    'https://www.orangefreesounds.com/wp-content/uploads/2018/11/zen-meditation-music.mp3',
+    // Fallback: Generate simple tones if external sources fail
+    'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEA=='
+];
 
-// Initialize music with better error handling
+let currentZenTrack = 0;
+let zenAudio = null;
+let musicStarted = false;
+
 function initMusic() {
     try {
-        // Make sure the audio element is in the DOM
-        if (!document.getElementById('gameMusic')) {
-            document.body.appendChild(music);
-        }
+        console.log('🎵 Initializing simple zen music system...');
         
-        // Try to play
-        const playAttempt = () => {
-            music.play()
-                .then(() => {
-                    console.log("Music started successfully");
-                    document.removeEventListener('click', playAttempt);
-                    document.removeEventListener('touchstart', playAttempt);
-                    document.removeEventListener('keydown', playAttempt);
-                })
-                .catch(error => {
-                    console.warn("Music play failed, will retry on interaction:", error);
-                });
-        };
-
-        // Try immediate play
-        playAttempt();
+        // Create audio element
+        zenAudio = new Audio();
+        zenAudio.volume = 0.3; // Nice gentle volume
+        zenAudio.loop = true;
         
-        // Also set up listeners for user interaction
-        document.addEventListener('click', playAttempt);
-        document.addEventListener('touchstart', playAttempt);
-        document.addEventListener('keydown', playAttempt);
+        // Set up first track
+        zenAudio.src = zenMusicSources[currentZenTrack];
+        
+        // Handle errors and try next track
+        zenAudio.addEventListener('error', function() {
+            console.log('🎵 Track failed, trying next...');
+            tryNextTrack();
+        });
+        
+        zenAudio.addEventListener('canplaythrough', function() {
+            console.log('🎵 Zen music ready - click to start!');
+        });
+        
+        console.log('🎵 Zen audio initialized successfully');
         
     } catch (error) {
-        console.error("Music initialization error:", error);
+        console.log('🔇 Music system failed - creating backup Web Audio zen tones');
+        initWebAudioFallback();
     }
 }
+
+function tryNextTrack() {
+    currentZenTrack = (currentZenTrack + 1) % zenMusicSources.length;
+    if (zenAudio) {
+        zenAudio.src = zenMusicSources[currentZenTrack];
+    }
+}
+
+function playMusic() {
+    if (!musicStarted) {
+        musicStarted = true;
+        
+        if (zenAudio) {
+            // Try to play HTML5 audio first
+            zenAudio.play().then(() => {
+                console.log('🎵 Zen music playing!');
+            }).catch((error) => {
+                console.log('🎵 HTML5 audio failed, using Web Audio fallback');
+                initWebAudioFallback();
+                playWebAudioZen();
+            });
+        } else {
+            // Fallback to Web Audio
+            initWebAudioFallback();
+            playWebAudioZen();
+        }
+    }
+}
+
+function pauseMusic() {
+    if (zenAudio) {
+        zenAudio.pause();
+    }
+    if (zenOscillators) {
+        zenOscillators.forEach(osc => {
+            try { osc.stop(); } catch(e) {}
+        });
+    }
+    musicStarted = false;
+}
+
+// Web Audio fallback for ultimate compatibility
+let audioContext = null;
+let zenOscillators = [];
+
+function initWebAudioFallback() {
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        zenOscillators = [];
+        console.log('🎵 Web Audio fallback initialized');
+    } catch (error) {
+        console.log('🔇 No audio support available');
+    }
+}
+
+function playWebAudioZen() {
+    if (!audioContext) return;
+    
+    // Clean up existing
+    zenOscillators.forEach(osc => {
+        try { osc.stop(); } catch(e) {}
+    });
+    zenOscillators = [];
+    
+    // Create simple zen tones
+    const frequencies = [220, 261.63, 329.63, 392]; // A minor chord
+    
+    frequencies.forEach((freq, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+        oscillator.type = 'sine';
+        
+        // Very gentle volume
+        gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.start();
+        zenOscillators.push(oscillator);
+        
+        // Add gentle vibrato
+        const lfo = audioContext.createOscillator();
+        const lfoGain = audioContext.createGain();
+        lfo.frequency.setValueAtTime(0.5, audioContext.currentTime);
+        lfo.type = 'sine';
+        lfoGain.gain.setValueAtTime(2, audioContext.currentTime);
+        
+        lfo.connect(lfoGain);
+        lfoGain.connect(oscillator.frequency);
+        lfo.start();
+    });
+    
+    console.log('🎵 Web Audio zen tones playing');
+}
+
+// Start music on user interaction
+function startMusicOnInteraction() {
+    if (!musicStarted) {
+        playMusic();
+        // Remove listeners after first interaction
+        document.removeEventListener('click', startMusicOnInteraction);
+        document.removeEventListener('keydown', startMusicOnInteraction);
+        document.removeEventListener('touchstart', startMusicOnInteraction);
+    }
+}
+
+// Set up interaction listeners
+document.addEventListener('click', startMusicOnInteraction);
+document.addEventListener('keydown', startMusicOnInteraction);
+document.addEventListener('touchstart', startMusicOnInteraction);
 
 // Sprite generation code - Improved cute dino
 function createDinoSprite(frame) {
@@ -313,6 +431,48 @@ function createBirdSprite() {
     return canvas;
 }
 
+function createPlatformSprite() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 60; // Smaller platform
+    canvas.height = 12; // Smaller height
+
+    // 🌱 Grassy earth platform
+    // Dirt/earth base
+    ctx.fillStyle = '#8D6E63'; // Brown earth
+    ctx.fillRect(0, 4, canvas.width, canvas.height - 4);
+    
+    // Darker earth shadows
+    ctx.fillStyle = '#5D4037'; // Dark brown
+    ctx.fillRect(0, canvas.height - 2, canvas.width, 2); // Bottom shadow
+    ctx.fillRect(canvas.width - 1, 4, 1, canvas.height - 4); // Right shadow
+    
+    // Grass top layer
+    ctx.fillStyle = '#4CAF50'; // Green grass
+    ctx.fillRect(0, 0, canvas.width, 6);
+    
+    // Grass texture - small grass blades
+    ctx.fillStyle = '#2E7D32'; // Dark green
+    for (let x = 0; x < canvas.width; x += 3) {
+        const grassHeight = 1 + Math.random() * 2;
+        ctx.fillRect(x, 1, 1, grassHeight);
+    }
+    
+    // Light green highlights on grass
+    ctx.fillStyle = '#66BB6A'; // Light green
+    for (let x = 1; x < canvas.width; x += 4) {
+        ctx.fillRect(x, 2, 1, 1);
+    }
+    
+    // Small leaves/flowers scattered
+    ctx.fillStyle = '#8BC34A'; // Lime green
+    for (let x = 5; x < canvas.width; x += 12) {
+        ctx.fillRect(x, 1, 2, 1); // Small leaf
+    }
+
+    return canvas;
+}
+
 // Load sprites
 let dinoRun1 = createDinoSprite('run1');
 let dinoRun2 = createDinoSprite('run2');
@@ -322,6 +482,7 @@ let groundTexture = createGroundSprite();
 let cloudSprite = createCloudSprite();
 let fishSprite = createFishSprite();
 let birdSprite = createBirdSprite();
+let platformSprite = createPlatformSprite();
 
 // Create star array
 const stars = [];
@@ -516,18 +677,82 @@ function updateBirds() {
     }
 }
 
+function spawnPlatform() {
+    const now = Date.now();
+    
+    // Platforms appear after level 25 for advanced gameplay
+    if (score > 25 && now - lastPlatformSpawn > (3000 + Math.random() * 3000)) {
+        const currentSpeed = GAME_SPEED * gameSpeedMultiplier;
+        
+        // More random heights with better variation
+        const baseHeights = [
+            ground.y - 50,  // Very low
+            ground.y - 70,  // Low 
+            ground.y - 90,  // Medium low
+            ground.y - 110, // Medium
+            ground.y - 130, // Medium high
+            ground.y - 150, // High (still reachable)
+        ];
+        
+        // Add random variation to each height
+        const baseHeight = baseHeights[Math.floor(Math.random() * baseHeights.length)];
+        const randomVariation = (Math.random() - 0.5) * 20; // ±10 pixels variation
+        const finalHeight = baseHeight + randomVariation;
+        
+        platforms.push({
+            x: canvas.width + 100,
+            y: finalHeight,
+            width: 60,  // Updated to match new sprite size
+            height: 12, // Updated to match new sprite size
+            speed: currentSpeed
+        });
+        
+        lastPlatformSpawn = now;
+    }
+}
+
+function updatePlatforms() {
+    let onPlatform = false;
+    
+    for (let i = platforms.length - 1; i >= 0; i--) {
+        platforms[i].x -= platforms[i].speed;
+        
+        // Remove platforms that are off screen
+        if (platforms[i].x + platforms[i].width < 0) {
+            platforms.splice(i, 1);
+            continue;
+        }
+        
+        // Check if dino is landing on platform
+        if (checkPlatformLanding(dino, platforms[i])) {
+            // Snap dino to platform top
+            dino.y = platforms[i].y - dino.height;
+            isJumping = false;
+            velocityY = 0;
+            canDoubleJump = true; // Reset double jump when landing
+            onPlatform = true;
+        }
+    }
+    
+    // If dino is not on any platform and not jumping, check if should fall
+    if (!onPlatform && !isJumping && dino.y < ground.y - dino.height) {
+        isJumping = true; // Start falling
+        velocityY = 0; // Start falling from rest
+    }
+}
+
+function checkPlatformLanding(dino, platform) {
+    // Check if dino is landing on top of the platform
+    return dino.x + 10 < platform.x + platform.width &&     // Dino overlaps platform horizontally
+           dino.x + dino.width - 10 > platform.x &&          // (with small margin for better feel)
+           dino.y + dino.height >= platform.y &&             // Dino is at or below platform top
+           dino.y + dino.height <= platform.y + platform.height + 8 && // Within platform thickness + tolerance
+           velocityY >= 0;                                    // Only when falling or at peak of jump
+}
+
 function gameOver() {
     isGameOver = true;
-    music.pause();
-    
-    try {
-        // Play game over sound
-        const gameOverSound = new Audio('https://raw.githubusercontent.com/mohsin-code/dinosaur-game/main/assets/audio/game-over.mp3');
-        gameOverSound.volume = 0.3;
-        gameOverSound.play().catch(e => console.warn('Game over sound failed:', e));
-    } catch (error) {
-        console.error("Game over sound error:", error);
-    }
+    pauseMusic(); // Use new music system
     
     // Hide original game over elements
     const gameOverText = document.getElementById('gameOver');
@@ -542,7 +767,7 @@ function gameOver() {
         } else {
             console.error('Leaderboard not initialized yet! Score:', score);
         }
-    }, 800); // Give time for the game over sound to play
+    }, 100); // Quick transition without waiting for sound
 }
 
 function startGame() {
@@ -550,12 +775,14 @@ function startGame() {
     score = 0;
     obstacles.length = 0;
     birds.length = 0;
+    platforms.length = 0;
     isGameOver = false;
     dino.y = ground.y - dino.height;
     isJumping = false;
     canDoubleJump = false;
     velocityY = 0;
     lastObstacleSpawn = Date.now();
+    lastPlatformSpawn = Date.now();
     gameSpeedMultiplier = 1;
     
     // Initialize game elements if needed
@@ -575,16 +802,8 @@ function startGame() {
         window.leaderboard.hideHighScoreScreen();
     }
     
-    // Restart music
-    try {
-        music.currentTime = 0;
-        music.play().catch(error => {
-            console.warn("Music restart failed:", error);
-            initMusic();
-        });
-    } catch (error) {
-        console.error("Music restart error:", error);
-    }
+    // Restart music with new system
+    playMusic();
 }
 
 function update(currentTime) {
@@ -616,8 +835,14 @@ function update(currentTime) {
     // Update birds
     updateBirds();
 
+    // Update platforms
+    updatePlatforms();
+
     // Spawn new obstacles
     spawnObstacle();
+    
+    // Spawn platforms (after score 100)
+    spawnPlatform();
 
     // Update obstacles with individual speeds
     for (let i = obstacles.length - 1; i >= 0; i--) {
@@ -732,6 +957,11 @@ function draw() {
         ctx.drawImage(birdSprite, bird.x, bird.y, bird.width, bird.height);
     }
 
+    // Draw platforms
+    for (const platform of platforms) {
+        ctx.drawImage(platformSprite, platform.x, platform.y, platform.width, platform.height);
+    }
+
     // Draw score
     ctx.fillStyle = '#FFF';  // White text for night theme
     ctx.font = '12px "Press Start 2P"';
@@ -739,6 +969,18 @@ function draw() {
     ctx.textBaseline = 'top';
     const scoreText = `Score: ${score.toString().padStart(3, '0')}`;
     ctx.fillText(scoreText, canvas.width - 20, 15);
+    
+    // Music indicator
+    if (!musicStarted) {
+        ctx.font = '8px "Press Start 2P"';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.fillText('🎵 Click to start zen music', canvas.width - 20, 35);
+    } else {
+        ctx.font = '8px "Press Start 2P"';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillText('🎵 Zen music playing', canvas.width - 20, 35);
+    }
+    
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
 }
@@ -755,7 +997,21 @@ document.addEventListener('keydown', handleKeyDown);
 
 // Handle keyboard events
 function handleKeyDown(event) {
+    // Check if any input field is focused
+    const activeElement = document.activeElement;
+    const isInputFocused = activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.contentEditable === 'true'
+    );
+    
+    // Don't handle game controls if user is typing
+    if (isInputFocused) {
+        return;
+    }
+    
     if (event.code === 'Space') {
+        event.preventDefault(); // Prevent page scroll
         if (isGameOver) {
             startGame();
         } else {
@@ -798,5 +1054,5 @@ initFish();
 startGame();
 gameLoop();
 
-// Call initMusic at the end of the file
+// Initialize music system
 initMusic();

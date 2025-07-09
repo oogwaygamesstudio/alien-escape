@@ -23,59 +23,22 @@
             text-align: center;
             font-family: 'Press Start 2P', cursive;
             margin: 0;
-            padding: 0;
+            overflow: hidden;
             background: linear-gradient(to bottom, #2b334d, #2b334d);
             touch-action: manipulation;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            height: 100vh;
         }
-        
         #gameContainer {
             position: relative;
             width: 100%;
-            max-width: 414px; /* Mobile-first max width */
-            margin: 0 auto;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            height: 100%;
             touch-action: manipulation;
         }
-        
-        /* Canvas responsive sizing */
         canvas {
             display: block;
-            width: 100%;
-            height: auto;
-            max-width: 414px;
+            width: 100vw;
+            height: 60vh;
             image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-        }
-        
-        /* Desktop styles */
-        @media (min-width: 768px) {
-            body {
-                padding: 20px;
-                background: linear-gradient(to bottom, #1a1a2e, #16213e);
-            }
-            
-            #gameContainer {
-                max-width: 414px; /* Fixed mobile-like width on desktop */
-                border: 3px solid #FFD700;
-                box-shadow: 
-                    0 0 30px rgba(255, 215, 0, 0.3),
-                    0 0 60px rgba(0,0,0,0.8);
-            }
-        }
-        
-        /* Large desktop styles */
-        @media (min-width: 1200px) {
-            #gameContainer {
-                max-width: 450px; /* Slightly larger on big screens */
-            }
         }
         #instructions {
             font-size: 14px;
