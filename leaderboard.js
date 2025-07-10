@@ -284,10 +284,9 @@ class Leaderboard {
         const form = document.getElementById('highScoreForm');
         form.classList.remove('hidden');
         
-        // Clear and focus the input
+        // Clear the input (don't auto-focus to prevent mobile keyboard)
         const nameInput = document.getElementById('gameOverNameInput');
         nameInput.value = '';
-        nameInput.focus();
     }
 
     hideHighScoreForm() {
@@ -331,7 +330,7 @@ class Leaderboard {
     showNameInput() {
         document.getElementById('nameInputModal').style.display = 'block';
         document.getElementById('nameInput').value = '';
-        document.getElementById('nameInput').focus();
+        // Don't auto-focus to prevent mobile keyboard from opening automatically
     }
 
     hideNameInput() {
@@ -994,7 +993,7 @@ class Leaderboard {
             // Add shake animation for empty name
             nameInput.style.animation = 'shake 0.5s ease-in-out';
             setTimeout(() => nameInput.style.animation = '', 500);
-            nameInput.focus();
+            // Don't auto-focus to prevent mobile keyboard issues
             return;
         }
 
@@ -1002,7 +1001,7 @@ class Leaderboard {
             // Add shake animation for too long name
             nameInput.style.animation = 'shake 0.5s ease-in-out';
             setTimeout(() => nameInput.style.animation = '', 500);
-            nameInput.focus();
+            // Don't auto-focus to prevent mobile keyboard issues
             return;
         }
 

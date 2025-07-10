@@ -1850,6 +1850,23 @@ function handleKeyDown(event) {
 function handleTouch(event) {
     event.preventDefault();  // Prevent default touch behavior
     
+    // Check if any modal/form is currently visible (prevent touch-to-restart)
+    const highScoreForm = document.getElementById('highScoreForm');
+    const leaderboardModal = document.getElementById('leaderboardModal');
+    const nameInputModal = document.getElementById('nameInputModal');
+    
+    if (highScoreForm && !highScoreForm.classList.contains('hidden')) {
+        return; // Don't handle touch if highscore form is visible
+    }
+    
+    if (leaderboardModal && leaderboardModal.style.display === 'block') {
+        return; // Don't handle touch if leaderboard modal is visible
+    }
+    
+    if (nameInputModal && nameInputModal.style.display === 'block') {
+        return; // Don't handle touch if name input modal is visible
+    }
+    
     // If game hasn't started, start it from menu
     if (!gameStarted) {
         startGameFromMenu();
