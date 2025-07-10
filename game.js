@@ -194,6 +194,16 @@ function toggleMusic() {
     }
     
     updateMusicButtons();
+    
+    // FIX: Re-ensure touch listener is active after music toggle
+    console.log('🔧 Re-ensuring touch listener after music toggle');
+    document.removeEventListener('touchstart', handleTouch);
+    document.addEventListener('touchstart', handleTouch);
+    
+    // Also reset touch timing to prevent any corruption
+    lastTapTime = 0;
+    
+    console.log('✅ Touch listener re-added and touch timing reset');
 }
 
 function updateMusicButtons() {
@@ -646,15 +656,28 @@ function initHills() {
 
 // Game functions
 function jump() {
+    console.log('🦘 Jump function called', {
+        isGameOver: isGameOver,
+        isJumping: isJumping,
+        canDoubleJump: canDoubleJump,
+        gameStarted: gameStarted
+    });
+    
     if (!isGameOver) {
         if (!isJumping) {
+            console.log('✅ Normal jump executed!');
             isJumping = true;
             canDoubleJump = true;
             velocityY = JUMP_FORCE;
         } else if (canDoubleJump) {
+            console.log('✅ Double jump executed!');
             velocityY = JUMP_FORCE * 0.9; // Improved double jump force
             canDoubleJump = false;
+        } else {
+            console.log('❌ Jump blocked - already jumping and no double jump available');
         }
+    } else {
+        console.log('❌ Jump blocked - game over');
     }
 }
 
@@ -1494,6 +1517,13 @@ function showHighscoresFromMenu() {
 }
 
 function startGame() {
+    // CRITICAL: Ensure touch system is working before starting game
+    console.log('🔧 Ensuring touch system is working before game start');
+    document.removeEventListener('touchstart', handleTouch);
+    document.addEventListener('touchstart', handleTouch);
+    lastTapTime = 0; // Reset touch timing
+    console.log('✅ Touch system refreshed for new game');
+    
     // Reset game state
     score = 0;
     obstacles.length = 0;
@@ -1540,6 +1570,7 @@ function startGame() {
     // Make sure no modal or highscore screen is visible when starting game
     const leaderboardModal = document.getElementById('leaderboardModal');
     const highScoreScreen = document.getElementById('highScoreScreen');
+    const highScoreForm = document.getElementById('highScoreForm');
     
     if (leaderboardModal && leaderboardModal.style.display === 'block') {
         leaderboardModal.style.display = 'none';
@@ -1551,6 +1582,12 @@ function startGame() {
         console.log('🔧 Closed highscore screen when starting game');
     }
     
+    // CRITICAL FIX: Hide the highscore form properly
+    if (highScoreForm && !highScoreForm.classList.contains('hidden')) {
+        highScoreForm.classList.add('hidden');
+        console.log('🔧 Hidden highscore form when starting game');
+    }
+    
     // Restart music with new system (but don't auto-start here, let startGameFromMenu handle it)
     // playMusic();
     invincible = false;
@@ -1558,6 +1595,20 @@ function startGame() {
     invincibilityChargesUsed = 0;
     
     console.log('🎮 Game started!');
+    
+    // TEST: Add a simple touch test that can be called manually
+    window.testTouch = function() {
+        console.log('🧪 Testing touch system manually...');
+        const testEvent = new TouchEvent('touchstart', {
+            bubbles: true,
+            cancelable: true,
+            touches: [{ clientX: 100, clientY: 100 }]
+        });
+        document.dispatchEvent(testEvent);
+        console.log('🧪 Test touch event dispatched');
+    };
+    
+    console.log('🧪 Touch test function available: window.testTouch()');
 }
 
 // Add a proper lastUpdateTime variable for delta time calculation
@@ -1951,30 +2002,50 @@ function handleTouch(event) {
     const targetId = target ? target.id : '';
     const targetClass = target ? target.className : '';
     
+    console.log('👆 Touch event detected', {
+        targetId: targetId,
+        targetClass: targetClass,
+        tagName: target?.tagName,
+        gameStarted: gameStarted,
+        isGameOver: isGameOver
+    });
+    
     // If touch is on any button, modal, or interactive element, don't handle it here
-    if (target && (
-        target.tagName === 'BUTTON' ||
-        target.tagName === 'INPUT' ||
-        target.tagName === 'A' ||
-        targetId === 'invincibilityButton' ||
-        targetId === 'playGameBtn' ||
-        targetId === 'viewHighscoresBtn' ||
-        targetId === 'musicToggleBtn' ||
-        targetClass.includes('btn') ||
-        targetClass.includes('button') ||
-        target.closest('.modal') ||
-        target.closest('#leaderboardModal') ||
-        target.closest('#highScoreScreen') ||
-        target.closest('#startScreen')
-    )) {
+    // BUT allow game area touches (gameContainer, gameCanvas) even if they're inside other elements
+    if (target && 
+        targetId !== 'gameContainer' && 
+        targetId !== 'gameCanvas' && 
+        (
+            target.tagName === 'BUTTON' ||
+            target.tagName === 'INPUT' ||
+            target.tagName === 'A' ||
+            targetId === 'invincibilityButton' ||
+            targetId === 'playGameBtn' ||
+            targetId === 'viewHighscoresBtn' ||
+            targetId === 'musicToggleBtn' ||
+            targetClass.includes('btn') ||
+            targetClass.includes('button') ||
+            target.closest('.modal') ||
+            target.closest('#leaderboardModal') ||
+            target.closest('#highScoreScreen')
+        )) {
+        console.log('🚫 Touch on UI element - ignoring for game', targetId || targetClass);
         return; // Let the specific button handlers deal with it
+    }
+    
+    // Special case: Allow game area touches even when start screen is visible but game is running
+    if (targetId === 'gameContainer' || targetId === 'gameCanvas') {
+        console.log('✅ Touch on game area - allowing for gameplay', targetId);
     }
     
     event.preventDefault();  // Prevent default touch behavior
     
+    console.log('🔍 Checking blocking conditions...');
+    
     // CRITICAL: Check if highscore screen is visible (prevent touch-anywhere-restart)
     const highScoreScreen = document.getElementById('highScoreScreen');
     if (highScoreScreen && (highScoreScreen.style.display !== 'none' && !highScoreScreen.classList.contains('hidden'))) {
+        console.log('🚫 Blocked by highscore screen check');
         return; // Don't handle touch if highscore screen is visible - only buttons should work
     }
     
@@ -1984,21 +2055,36 @@ function handleTouch(event) {
     const nameInputModal = document.getElementById('nameInputModal');
     const startScreen = document.getElementById('startScreen');
     
-    if (highScoreForm && !highScoreForm.classList.contains('hidden')) {
+    console.log('🔍 Modal states:', {
+        highScoreForm: highScoreForm ? !highScoreForm.classList.contains('hidden') : 'not found',
+        leaderboardModal: leaderboardModal ? leaderboardModal.style.display : 'not found',
+        nameInputModal: nameInputModal ? nameInputModal.style.display : 'not found',
+        startScreen: startScreen ? startScreen.style.display : 'not found',
+        gameStarted: gameStarted,
+        isGameOver: isGameOver
+    });
+    
+    if (highScoreForm && !highScoreForm.classList.contains('hidden') && highScoreForm.style.display !== 'none') {
+        console.log('🚫 Blocked by highscore form check - form is actually visible');
         return; // Don't handle touch if highscore form is visible
     }
     
     if (leaderboardModal && leaderboardModal.style.display === 'block') {
+        console.log('🚫 Blocked by leaderboard modal check');
         return; // Don't handle touch if leaderboard modal is visible
     }
     
     if (nameInputModal && nameInputModal.style.display === 'block') {
+        console.log('🚫 Blocked by name input modal check');
         return; // Don't handle touch if name input modal is visible
     }
     
-    if (startScreen && startScreen.style.display === 'block') {
-        return; // Don't handle touch if start screen is visible - buttons should handle menu actions
+    if (startScreen && startScreen.style.display === 'block' && !gameStarted) {
+        console.log('🚫 Blocked by start screen check (game not started)');
+        return; // Don't handle touch if start screen is visible and game hasn't started
     }
+    
+    console.log('✅ All blocking checks passed - proceeding to game logic');
     
     // If game hasn't started, start it from menu
     if (!gameStarted) {
@@ -2012,17 +2098,27 @@ function handleTouch(event) {
     }
 
     // Handle jumping in game
-    console.log('🦘 Touch detected - jumping!');
+    console.log('🦘 Touch detected - jumping!', {
+        gameStarted: gameStarted,
+        isGameOver: isGameOver,
+        lastTapTime: lastTapTime,
+        currentTime: Date.now()
+    });
+    
     const now = Date.now();
     
     if (!lastTapTime) {
+        console.log('🔥 First tap - setting lastTapTime and jumping');
         lastTapTime = now;
         jump();
     } else {
         const tapLength = now - lastTapTime;
+        console.log(`⏱️ Tap timing: ${tapLength}ms since last tap`);
         if (tapLength < 300 && canDoubleJump) {  // 300ms window for double tap
+            console.log('🚀 Double tap detected - double jumping');
             doubleJump();
         } else {
+            console.log('👆 Regular tap - single jumping');
             jump();
         }
         lastTapTime = now;
@@ -2057,21 +2153,35 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Main menu music button
     if (menuMusicBtn) {
+        console.log('🔧 Setting up music button events');
+        
         menuMusicBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            console.log('🎵 Music button clicked');
             toggleMusic();
         });
         
-        menuMusicBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-        
+        // Isolated touch handling - prevent any interference with global touch system
         menuMusicBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation(); // Stop ALL propagation
+            console.log('🎵 Music button touched');
             toggleMusic();
+        });
+        
+        // Prevent any touch events from bubbling up from music button
+        menuMusicBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        });
+        
+        menuMusicBtn.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
         });
     }
     
