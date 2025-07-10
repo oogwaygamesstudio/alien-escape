@@ -941,6 +941,8 @@
             pointer-events: none;
         }
         
+                /* In-game music button removed - only menu button now */
+        
         /* Start Screen Styles */
         #startScreen {
             position: fixed;
@@ -1132,6 +1134,11 @@
             color: #fff;
         }
         
+        .menu-btn.music {
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+            color: #fff;
+        }
+        
         .menu-btn:hover {
             transform: translateY(-3px) scale(1.05);
             box-shadow: 0 9px 0 #333, 0 12px 20px rgba(0,0,0,0.4);
@@ -1244,6 +1251,10 @@
                 <button id="viewHighscoresBtn" class="menu-btn secondary">
                     <span class="btn-icon">🏆</span>
                     <span class="btn-text">HIGHSCORES</span>
+                </button>
+                <button id="musicToggleBtn" class="menu-btn music">
+                    <span class="btn-icon" id="musicIcon">🔊</span>
+                    <span class="btn-text" id="musicText">MUSIC ON</span>
                 </button>
             </div>
             

@@ -117,173 +117,99 @@ const ground = {
     height: 40
 };
 
-// 🎵 Simple & Reliable Zen Music System
-const zenMusicSources = [
-    // Real working free music from Archive.org and other reliable sources
-    'https://archive.org/download/kevin-macleod-royalty-free-music/Kevin_MacLeod_-_Floating_Cities.mp3', // Peaceful ambient
-    'https://archive.org/download/kevin-macleod-royalty-free-music/Kevin_MacLeod_-_Drifting_at_600_Feet.mp3', // Calm floating music
-    'https://archive.org/download/kevin-macleod-royalty-free-music/Kevin_MacLeod_-_Gymnopedie_No_1.mp3', // Classical peaceful
-    'https://archive.org/download/FreeMusicArchive/Kai_Engel_-_Irsens_Tale_-_01_Sanguine.mp3', // Ambient zen
-    'https://archive.org/download/FreeMusicArchive/Kai_Engel_-_Irsens_Tale_-_06_The_Night_Unfolds.mp3', // Relaxing ambient
-    // If external fails, at least this won't be annoying tones
-    'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEA=='
-];
-
-let currentZenTrack = 0;
+// 🎵 Clean Simple Music System - One Working Audio File
 let zenAudio = null;
 let musicStarted = false;
+let musicEnabled = true; // Music on by default
 
 function initMusic() {
     try {
-        console.log('🎵 Initializing zen music system...');
+        console.log('🎵 Initializing Zen Garden music...');
         
-        // Create audio element
+        // Create audio element for the zen garden track
         zenAudio = new Audio();
-        zenAudio.volume = 0.2; // Gentle volume
-        zenAudio.loop = false; // We'll handle track cycling manually
-        zenAudio.crossOrigin = "anonymous"; // For better compatibility
+        zenAudio.volume = 0.2; // Gentle zen volume
+        zenAudio.loop = true; // Loop continuously
         
-        // Set up first track
-        zenAudio.src = zenMusicSources[currentZenTrack];
+        // Use the local zen garden MP3 file
+        zenAudio.src = 'assets/audio/zen-garden.mp3';
         
-        // Handle track ending - cycle to next track
-        zenAudio.addEventListener('ended', function() {
-            console.log('🎵 Track ended, switching to next...');
-            currentZenTrack = (currentZenTrack + 1) % (zenMusicSources.length - 1); // Exclude the fallback
-            zenAudio.src = zenMusicSources[currentZenTrack];
-            zenAudio.play().catch(() => {
-                console.log('🎵 Track failed, trying next...');
-                tryNextTrack();
-            });
+        // Preload the audio
+        zenAudio.preload = 'auto';
+        
+        // Handle errors gracefully
+        zenAudio.addEventListener('error', function(e) {
+            console.log('🔇 Zen Garden music file not found. Please ensure "zen-garden.mp3" is in assets/audio/ folder');
+            zenAudio = null;
         });
         
-        // Handle errors and try next track
-        zenAudio.addEventListener('error', function() {
-            console.log('🎵 Track failed, trying next...');
-            tryNextTrack();
-        });
-        
+        // Log when music is ready
         zenAudio.addEventListener('canplaythrough', function() {
-            console.log('🎵 Music ready!');
+            console.log('🎵 Zen Garden music ready to play');
         });
         
-        console.log('🎵 Music system initialized');
+        console.log('🎵 Zen Garden music initialized');
         
     } catch (error) {
-        console.log('🔇 Music system failed - will use Web Audio fallback');
-        initWebAudioFallback();
-    }
-}
-
-function tryNextTrack() {
-    currentZenTrack = (currentZenTrack + 1) % zenMusicSources.length;
-    if (zenAudio && currentZenTrack < zenMusicSources.length - 1) {
-        zenAudio.src = zenMusicSources[currentZenTrack];
-        zenAudio.play().catch(() => {
-            // If this track also fails, try the next one
-            if (currentZenTrack < zenMusicSources.length - 2) {
-                setTimeout(() => tryNextTrack(), 1000);
-            } else {
-                // All tracks failed, use Web Audio fallback
-                console.log('🔇 All tracks failed, using Web Audio fallback');
-                initWebAudioFallback();
-                playWebAudioZen();
-            }
-        });
-    } else {
-        // Use Web Audio fallback
-        initWebAudioFallback();
-        playWebAudioZen();
+        console.log('🔇 Music system not available:', error);
+        zenAudio = null;
     }
 }
 
 function playMusic() {
+    if (!musicEnabled || !zenAudio) return; // Don't play if music is disabled or unavailable
+    
     if (!musicStarted) {
         musicStarted = true;
         
-        if (zenAudio) {
-            // Try to play HTML5 audio first
-            zenAudio.play().then(() => {
-                console.log('🎵 Music playing!');
-            }).catch((error) => {
-                console.log('🎵 HTML5 audio failed, trying next track');
-                tryNextTrack();
-            });
-        } else {
-            // Fallback to Web Audio
-            initWebAudioFallback();
-            playWebAudioZen();
-        }
+        zenAudio.play().then(() => {
+            console.log('🎵 Zen Garden music playing');
+        }).catch((error) => {
+            console.log('🔇 Zen Garden music playback failed:', error);
+            musicStarted = false;
+        });
     }
 }
 
 function pauseMusic() {
     if (zenAudio) {
         zenAudio.pause();
-    }
-    if (zenOscillators) {
-        zenOscillators.forEach(osc => {
-            try { osc.stop(); } catch(e) {}
-        });
+        zenAudio.currentTime = 0; // Reset to beginning
     }
     musicStarted = false;
 }
 
-// Web Audio fallback for ultimate compatibility
-let audioContext = null;
-let zenOscillators = [];
-
-function initWebAudioFallback() {
-    try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        zenOscillators = [];
-        console.log('🎵 Web Audio fallback initialized');
-    } catch (error) {
-        console.log('🔇 No audio support available');
+// Music toggle functions
+function toggleMusic() {
+    musicEnabled = !musicEnabled;
+    
+    if (musicEnabled) {
+        console.log('🎵 Music enabled');
+        if (gameStarted && !isGameOver) {
+            playMusic(); // Start music if game is running
+        }
+    } else {
+        console.log('🔇 Music disabled');
+        pauseMusic(); // Stop music immediately
     }
+    
+    updateMusicButtons();
 }
 
-function playWebAudioZen() {
-    if (!audioContext) return;
+function updateMusicButtons() {
+    // Update main menu button only (in-game button removed)
+    const menuMusicIcon = document.getElementById('musicIcon');
+    const menuMusicText = document.getElementById('musicText');
     
-    // Clean up existing
-    zenOscillators.forEach(osc => {
-        try { osc.stop(); } catch(e) {}
-    });
-    zenOscillators = [];
-    
-    // Create simple zen tones
-    const frequencies = [220, 261.63, 329.63, 392]; // A minor chord
-    
-    frequencies.forEach((freq, index) => {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
-        oscillator.type = 'sine';
-        
-        // Very gentle volume
-        gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.start();
-        zenOscillators.push(oscillator);
-        
-        // Add gentle vibrato
-        const lfo = audioContext.createOscillator();
-        const lfoGain = audioContext.createGain();
-        lfo.frequency.setValueAtTime(0.5, audioContext.currentTime);
-        lfo.type = 'sine';
-        lfoGain.gain.setValueAtTime(2, audioContext.currentTime);
-        
-        lfo.connect(lfoGain);
-        lfoGain.connect(oscillator.frequency);
-        lfo.start();
-    });
-    
-    console.log('🎵 Web Audio zen tones playing');
+    if (menuMusicIcon && menuMusicText) {
+        if (musicEnabled) {
+            menuMusicIcon.textContent = '🔊';
+            menuMusicText.textContent = 'MUSIC ON';
+        } else {
+            menuMusicIcon.textContent = '🔇';
+            menuMusicText.textContent = 'MUSIC OFF';
+        }
+    }
 }
 
 // Music will start automatically when game starts
@@ -1162,14 +1088,19 @@ function initStartScreen() {
     }
     
     if (viewHighscoresBtn) {
-        viewHighscoresBtn.addEventListener('click', () => {
+        viewHighscoresBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             showHighscoresFromMenu();
         });
         
         viewHighscoresBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             showHighscoresFromMenu();
         });
+    } else {
+        console.error('❌ viewHighscoresBtn not found!');
     }
     
     // Start the preview animation
@@ -1186,19 +1117,34 @@ function initPreviewElements() {
     // This creates a static scene showing the alien and some obstacles
 }
 
+let previewAnimationId = null;
+let lastPreviewUpdate = 0;
+const PREVIEW_FPS = 30; // Limit preview to 30 FPS to reduce CPU usage
+
 function animatePreview() {
-    if (!previewCanvas || !previewCtx || gameStarted) return;
+    if (!previewCanvas || !previewCtx || gameStarted) {
+        if (previewAnimationId) {
+            cancelAnimationFrame(previewAnimationId);
+            previewAnimationId = null;
+        }
+        return;
+    }
     
-    // Clear the preview canvas
-    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    const now = performance.now();
+    if (now - lastPreviewUpdate >= 1000 / PREVIEW_FPS) {
+        // Clear the preview canvas
+        previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        
+        // Draw a simplified game preview
+        drawPreviewBackground();
+        drawPreviewDino();
+        drawPreviewObstacles();
+        
+        lastPreviewUpdate = now;
+    }
     
-    // Draw a simplified game preview
-    drawPreviewBackground();
-            drawPreviewDino();
-    drawPreviewObstacles();
-    
-    // Continue animation
-    requestAnimationFrame(animatePreview);
+    // Continue animation with throttling
+    previewAnimationId = requestAnimationFrame(animatePreview);
 }
 
 function drawPreviewBackground() {
@@ -1371,6 +1317,11 @@ function showStartScreen() {
         startScreen.classList.add('show');
     }, 50);
     gameStarted = false; // Reset game state
+    
+    // Restart preview animation
+    if (previewCanvas && previewCtx && !previewAnimationId) {
+        animatePreview();
+    }
 }
 
 function hideStartScreen() {
@@ -1388,6 +1339,12 @@ function hideStartScreen() {
     // Show game container when actually starting game
     if (gameContainer) {
         gameContainer.style.display = 'block';
+    }
+    
+    // Stop preview animation to improve performance
+    if (previewAnimationId) {
+        cancelAnimationFrame(previewAnimationId);
+        previewAnimationId = null;
     }
     
     gameStarted = true;
@@ -1412,40 +1369,107 @@ function startGameFromMenu() {
     // Wait for start screen to fade out before starting game
     setTimeout(() => {
         startGame();
-        playMusic(); // Start music when game begins
+        if (musicEnabled) {
+            playMusic(); // Start music when game begins (only if enabled)
+        }
     }, 300);
 }
 
 function showHighscoresFromMenu() {
     console.log('🏆 Showing highscores from menu...');
-    if (window.leaderboard && window.leaderboard.showLeaderboard) {
-        // Temporarily hide start screen WITHOUT starting the game
-        hideStartScreenTemporarily();
-        
-        // Show leaderboard modal
-        setTimeout(() => {
+    
+    // First check if modal exists
+    const leaderboardModal = document.getElementById('leaderboardModal');
+    if (!leaderboardModal) {
+        console.error('❌ Leaderboard modal not found in DOM!');
+        alert('Error: Leaderboard interface not found!');
+        return;
+    }
+    
+    // Simple direct call - no complex retry needed
+    if (window.leaderboard && typeof window.leaderboard.showLeaderboard === 'function') {
+        console.log('✅ Leaderboard ready - showing now');
+        try {
             window.leaderboard.showLeaderboard();
             
-            // Add event listener to show start screen again when leaderboard closes
-            const leaderboardModal = document.getElementById('leaderboardModal');
+            // Ensure modal visibility (fix for CSS conflicts)
+            setTimeout(() => {
+                const modal = document.getElementById('leaderboardModal');
+                if (modal && window.getComputedStyle(modal).display === 'none') {
+                    // Only apply forced styling if modal isn't showing
+                    modal.style.display = 'block';
+                    modal.style.zIndex = '9999';
+                    console.log('🔧 Applied visibility fix for leaderboard modal');
+                }
+            }, 50);
+            
+            // Add simple close handler to return to menu
             const closeHandler = () => {
-                showStartScreen();
-                leaderboardModal.removeEventListener('click', closeHandler);
-                document.getElementById('closeLeaderboard').removeEventListener('click', closeHandler);
-                document.querySelector('.close-btn').removeEventListener('click', closeHandler);
+                // Make sure we return to start screen when closed
+                if (!gameStarted) {
+                    console.log('📱 Returning to start screen');
+                    showStartScreen();
+                }
             };
+            
+            // Add one-time event listeners
+            const closeBtn = document.getElementById('closeLeaderboard');
+            const xBtn = document.querySelector('.close-btn');
+            
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeHandler, { once: true });
+            }
+            if (xBtn) {
+                xBtn.addEventListener('click', closeHandler, { once: true });
+            }
             
             leaderboardModal.addEventListener('click', (e) => {
                 if (e.target.id === 'leaderboardModal') {
                     closeHandler();
                 }
-            });
-            
-            document.getElementById('closeLeaderboard').addEventListener('click', closeHandler);
-            document.querySelector('.close-btn').addEventListener('click', closeHandler);
-        }, 300);
+            }, { once: true });
+        } catch (error) {
+            console.error('❌ Error calling showLeaderboard():', error);
+            alert('Error showing leaderboard: ' + error.message);
+        }
     } else {
-        console.error('Leaderboard not available yet');
+        console.error('❌ Leaderboard method not available - using fallback');
+        
+        // Manual fallback - show modal directly
+        console.log('🔧 Using fallback method to show leaderboard...');
+        leaderboardModal.style.display = 'block';
+        leaderboardModal.style.zIndex = '9999';
+        
+        // Try to load leaderboards manually
+        if (window.leaderboard) {
+            try {
+                if (window.leaderboard.loadModalEliteLeaderboard) {
+                    window.leaderboard.loadModalEliteLeaderboard();
+                }
+                if (window.leaderboard.loadModalGlobalLeaderboard) {
+                    window.leaderboard.loadModalGlobalLeaderboard();
+                }
+            } catch (error) {
+                console.error('Error loading leaderboards manually:', error);
+            }
+        }
+        
+        // Add close listeners
+        const closeBtn = document.getElementById('closeLeaderboard');
+        const xBtn = document.querySelector('.close-btn');
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                leaderboardModal.style.display = 'none';
+                if (!gameStarted) showStartScreen();
+            }, { once: true });
+        }
+        if (xBtn) {
+            xBtn.addEventListener('click', () => {
+                leaderboardModal.style.display = 'none';
+                if (!gameStarted) showStartScreen();
+            }, { once: true });
+        }
     }
 }
 
@@ -1493,10 +1517,10 @@ function startGame() {
     // Hide start screen if it's visible
     hideStartScreen();
     
-    // Hide high score screen
-    if (window.leaderboard) {
-        window.leaderboard.hideHighScoreScreen();
-    }
+    // Don't hide high score screen when starting fresh - only when actually needed
+    // if (window.leaderboard) {
+    //     window.leaderboard.hideHighScoreScreen();
+    // }
     
     // Restart music with new system (but don't auto-start here, let startGameFromMenu handle it)
     // playMusic();
@@ -1638,19 +1662,33 @@ function draw() {
         ctx.fillRect(x, ground.y, 2, height);
     }
 
-    // Add animated water effect below ground
-    const waterGradient = ctx.createLinearGradient(0, ground.y + ground.height, 0, canvas.height);
-    waterGradient.addColorStop(0, '#1a2639');   // Darker blue that matches night theme
-    waterGradient.addColorStop(0.5, '#0f1827');
-    waterGradient.addColorStop(1, '#0f1624');   // Even darker at bottom
-    ctx.fillStyle = waterGradient;
+    // Professional deep space water effect below ground
+    const deepSpaceGradient = ctx.createLinearGradient(0, ground.y + ground.height, 0, canvas.height);
+    deepSpaceGradient.addColorStop(0, 'rgba(26, 38, 57, 0.95)');     // Subtle transition from night sky
+    deepSpaceGradient.addColorStop(0.3, 'rgba(15, 24, 39, 0.98)');   // Deeper blue-black
+    deepSpaceGradient.addColorStop(0.7, 'rgba(12, 18, 32, 0.99)');   // Almost black with hint of blue
+    deepSpaceGradient.addColorStop(1, 'rgba(8, 12, 24, 1)');         // Deep space black
+    ctx.fillStyle = deepSpaceGradient;
     ctx.fillRect(0, ground.y + ground.height, canvas.width, canvas.height - (ground.y + ground.height));
 
-    // Draw water waves
-    ctx.fillStyle = 'rgba(42, 78, 123, 0.3)';
-    for (let x = 0; x < canvas.width; x += 20) {
-        const waveHeight = Math.sin((x + score) * 0.02) * 2;
-        ctx.fillRect(x, ground.y + ground.height + waveHeight, 20, 4);
+    // Add subtle underwater stars/sparkles for cohesive night theme
+    for (let i = 0; i < 15; i++) {
+        const sparkleX = (i * 67 + score * 0.1) % canvas.width;
+        const sparkleY = ground.y + ground.height + 20 + (i * 23) % (canvas.height - ground.y - ground.height - 40);
+        const twinkle = Math.sin(Date.now() / 2000 + i * 0.5) * 0.3 + 0.7;
+        const opacity = twinkle * 0.15; // Very subtle
+        
+        ctx.fillStyle = `rgba(100, 150, 200, ${opacity})`;
+        ctx.beginPath();
+        ctx.arc(sparkleX, sparkleY, 1, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Elegant subtle water currents (much more refined)
+    ctx.fillStyle = 'rgba(30, 50, 80, 0.1)'; // Very subtle
+    for (let x = 0; x < canvas.width; x += 40) {
+        const currentHeight = Math.sin((x + score * 0.5) * 0.01) * 1;
+        ctx.fillRect(x, ground.y + ground.height + currentHeight + 15, 40, 2);
     }
 
     // Draw fish
@@ -1806,10 +1844,27 @@ function draw() {
     ctx.textBaseline = 'alphabetic';
 }
 
+let gameLoopId = null;
+
 function gameLoop(currentTime) {
-    update(currentTime);
-    draw();
-    requestAnimationFrame(gameLoop);
+    if (gameStarted) {
+        update(currentTime);
+        draw();
+    }
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+function stopGameLoop() {
+    if (gameLoopId) {
+        cancelAnimationFrame(gameLoopId);
+        gameLoopId = null;
+    }
+}
+
+function startGameLoop() {
+    if (!gameLoopId) {
+        gameLoopId = requestAnimationFrame(gameLoop);
+    }
 }
 
 // Event listeners
@@ -1849,6 +1904,18 @@ function handleKeyDown(event) {
 // Handle touch events
 function handleTouch(event) {
     event.preventDefault();  // Prevent default touch behavior
+    
+    // Check if touch is on UI buttons (prevent touch-to-jump on buttons)
+    const target = event.target;
+    if (target && target.id === 'invincibilityButton') {
+        return; // Don't handle touch if it's on a UI button
+    }
+    
+    // CRITICAL: Check if highscore screen is visible (prevent touch-anywhere-restart)
+    const highScoreScreen = document.getElementById('highScoreScreen');
+    if (highScoreScreen && (highScoreScreen.style.display !== 'none' && !highScoreScreen.classList.contains('hidden'))) {
+        return; // Don't handle touch if highscore screen is visible - only buttons should work
+    }
     
     // Check if any modal/form is currently visible (prevent touch-to-restart)
     const highScoreForm = document.getElementById('highScoreForm');
@@ -1903,7 +1970,7 @@ window.playMusic = playMusic;
 initStars();
 initClouds();
 initFish();
-gameLoop(); // Start the game loop (but game won't update until gameStarted = true)
+startGameLoop(); // Start the game loop (optimized to only run when needed)
 
 // Initialize music system
 initMusic();
@@ -1912,6 +1979,32 @@ initMusic();
 document.addEventListener('DOMContentLoaded', () => {
     initStartScreen();
     showStartScreen();
+    
+    // Initialize music button states
+    updateMusicButtons();
+    
+    // Add event listener for main menu music toggle button only
+    const menuMusicBtn = document.getElementById('musicToggleBtn');
+    
+    // Main menu music button
+    if (menuMusicBtn) {
+        menuMusicBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMusic();
+        });
+        
+        menuMusicBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        
+        menuMusicBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMusic();
+        });
+    }
 });
 
 // Fix the DOMContentLoaded event handler
