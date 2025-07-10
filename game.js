@@ -39,6 +39,11 @@ let platforms = []; // Floating Mario-style platforms
 let lastPlatformSpawn = 0;
 let gameSpeedMultiplier = 1;
 
+// Start screen state
+let gameStarted = false;
+let previewCanvas = null;
+let previewCtx = null;
+
 // Invincibility power-up state
 let invincible = false;
 let invincibilityTimer = 0;
@@ -114,13 +119,14 @@ const ground = {
 
 // 🎵 Simple & Reliable Zen Music System
 const zenMusicSources = [
-    // Real zen music from free sources - these will try to load
-    'https://www.bensound.com/bensound-music/bensound-relaxing.mp3',
-    'https://archive.org/download/RoyaltyFreeMusic/calm_meditation.mp3',
-    'https://freesound.org/data/previews/626/626777_906409-lq.mp3',
-    'https://www.orangefreesounds.com/wp-content/uploads/2018/11/zen-meditation-music.mp3',
-    // Fallback: Generate simple tones if external sources fail
-    'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEA=='
+    // Real working free music from Archive.org and other reliable sources
+    'https://archive.org/download/kevin-macleod-royalty-free-music/Kevin_MacLeod_-_Floating_Cities.mp3', // Peaceful ambient
+    'https://archive.org/download/kevin-macleod-royalty-free-music/Kevin_MacLeod_-_Drifting_at_600_Feet.mp3', // Calm floating music
+    'https://archive.org/download/kevin-macleod-royalty-free-music/Kevin_MacLeod_-_Gymnopedie_No_1.mp3', // Classical peaceful
+    'https://archive.org/download/FreeMusicArchive/Kai_Engel_-_Irsens_Tale_-_01_Sanguine.mp3', // Ambient zen
+    'https://archive.org/download/FreeMusicArchive/Kai_Engel_-_Irsens_Tale_-_06_The_Night_Unfolds.mp3', // Relaxing ambient
+    // If external fails, at least this won't be annoying tones
+    'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCThR0fPUfS4FIXfJ8OKJNwgZaLvt559NEA=='
 ];
 
 let currentZenTrack = 0;
@@ -129,15 +135,27 @@ let musicStarted = false;
 
 function initMusic() {
     try {
-        console.log('🎵 Initializing simple zen music system...');
+        console.log('🎵 Initializing zen music system...');
         
         // Create audio element
         zenAudio = new Audio();
-        zenAudio.volume = 0.3; // Nice gentle volume
-        zenAudio.loop = true;
+        zenAudio.volume = 0.2; // Gentle volume
+        zenAudio.loop = false; // We'll handle track cycling manually
+        zenAudio.crossOrigin = "anonymous"; // For better compatibility
         
         // Set up first track
         zenAudio.src = zenMusicSources[currentZenTrack];
+        
+        // Handle track ending - cycle to next track
+        zenAudio.addEventListener('ended', function() {
+            console.log('🎵 Track ended, switching to next...');
+            currentZenTrack = (currentZenTrack + 1) % (zenMusicSources.length - 1); // Exclude the fallback
+            zenAudio.src = zenMusicSources[currentZenTrack];
+            zenAudio.play().catch(() => {
+                console.log('🎵 Track failed, trying next...');
+                tryNextTrack();
+            });
+        });
         
         // Handle errors and try next track
         zenAudio.addEventListener('error', function() {
@@ -146,21 +164,36 @@ function initMusic() {
         });
         
         zenAudio.addEventListener('canplaythrough', function() {
-            console.log('🎵 Zen music ready - click to start!');
+            console.log('🎵 Music ready!');
         });
         
-        console.log('🎵 Zen audio initialized successfully');
+        console.log('🎵 Music system initialized');
         
     } catch (error) {
-        console.log('🔇 Music system failed - creating backup Web Audio zen tones');
+        console.log('🔇 Music system failed - will use Web Audio fallback');
         initWebAudioFallback();
     }
 }
 
 function tryNextTrack() {
     currentZenTrack = (currentZenTrack + 1) % zenMusicSources.length;
-    if (zenAudio) {
+    if (zenAudio && currentZenTrack < zenMusicSources.length - 1) {
         zenAudio.src = zenMusicSources[currentZenTrack];
+        zenAudio.play().catch(() => {
+            // If this track also fails, try the next one
+            if (currentZenTrack < zenMusicSources.length - 2) {
+                setTimeout(() => tryNextTrack(), 1000);
+            } else {
+                // All tracks failed, use Web Audio fallback
+                console.log('🔇 All tracks failed, using Web Audio fallback');
+                initWebAudioFallback();
+                playWebAudioZen();
+            }
+        });
+    } else {
+        // Use Web Audio fallback
+        initWebAudioFallback();
+        playWebAudioZen();
     }
 }
 
@@ -171,11 +204,10 @@ function playMusic() {
         if (zenAudio) {
             // Try to play HTML5 audio first
             zenAudio.play().then(() => {
-                console.log('🎵 Zen music playing!');
+                console.log('🎵 Music playing!');
             }).catch((error) => {
-                console.log('🎵 HTML5 audio failed, using Web Audio fallback');
-                initWebAudioFallback();
-                playWebAudioZen();
+                console.log('🎵 HTML5 audio failed, trying next track');
+                tryNextTrack();
             });
         } else {
             // Fallback to Web Audio
@@ -254,21 +286,7 @@ function playWebAudioZen() {
     console.log('🎵 Web Audio zen tones playing');
 }
 
-// Start music on user interaction
-function startMusicOnInteraction() {
-    if (!musicStarted) {
-        playMusic();
-        // Remove listeners after first interaction
-        document.removeEventListener('click', startMusicOnInteraction);
-        document.removeEventListener('keydown', startMusicOnInteraction);
-        document.removeEventListener('touchstart', startMusicOnInteraction);
-    }
-}
-
-// Set up interaction listeners
-document.addEventListener('click', startMusicOnInteraction);
-document.addEventListener('keydown', startMusicOnInteraction);
-document.addEventListener('touchstart', startMusicOnInteraction);
+// Music will start automatically when game starts
 
 // Sprite generation code - Improved cute dino
 function createDinoSprite(frame) {
@@ -860,13 +878,39 @@ function spawnPlatform() {
         const randomVariation = (Math.random() - 0.5) * 20; // ±10 pixels variation
         const finalHeight = baseHeight + randomVariation;
         
+        // Random platform sizes (small, medium, large)
+        const platformSizes = [
+            { width: 40, name: 'small' },   // Small platforms - challenging
+            { width: 60, name: 'medium' },  // Medium platforms - balanced
+            { width: 80, name: 'large' },   // Large platforms - easier
+            { width: 100, name: 'xlarge' }  // Extra large platforms - rare but helpful
+        ];
+        
+        // Weighted random selection (medium more common, xlarge less common)
+        const sizeWeights = [25, 40, 30, 5]; // small: 25%, medium: 40%, large: 30%, xlarge: 5%
+        const random = Math.random() * 100;
+        let selectedSize;
+        
+        if (random < sizeWeights[0]) {
+            selectedSize = platformSizes[0]; // small
+        } else if (random < sizeWeights[0] + sizeWeights[1]) {
+            selectedSize = platformSizes[1]; // medium
+        } else if (random < sizeWeights[0] + sizeWeights[1] + sizeWeights[2]) {
+            selectedSize = platformSizes[2]; // large
+        } else {
+            selectedSize = platformSizes[3]; // xlarge
+        }
+        
         platforms.push({
             x: canvas.width + 100,
             y: finalHeight,
-            width: 60,  // Updated to match new sprite size
-            height: 12, // Updated to match new sprite size
-            speed: currentSpeed
+            width: selectedSize.width,
+            height: 12, // Keep height consistent
+            speed: currentSpeed,
+            size: selectedSize.name // Store size for debugging/effects
         });
+        
+        console.log(`🏗️ Spawned ${selectedSize.name} platform (${selectedSize.width}px wide) at height ${Math.round(finalHeight)}`);;
         
         lastPlatformSpawn = now;
     }
@@ -1073,6 +1117,7 @@ function showBossDefeated() {
 
 function gameOver() {
     isGameOver = true;
+    gameStarted = false; // Reset this so start screen can be shown again
     pauseMusic(); // Use new music system
     
     // Hide original game over elements
@@ -1091,6 +1136,319 @@ function gameOver() {
     }, 100); // Quick transition without waiting for sound
 }
 
+// Start Screen Functions
+function initStartScreen() {
+    // Get preview canvas
+    previewCanvas = document.getElementById('previewCanvas');
+    if (previewCanvas) {
+        previewCanvas.width = 600;
+        previewCanvas.height = 200;
+        previewCtx = previewCanvas.getContext('2d');
+    }
+    
+    // Add event listeners for menu buttons
+    const playGameBtn = document.getElementById('playGameBtn');
+    const viewHighscoresBtn = document.getElementById('viewHighscoresBtn');
+    
+    if (playGameBtn) {
+        playGameBtn.addEventListener('click', () => {
+            startGameFromMenu();
+        });
+        
+        playGameBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startGameFromMenu();
+        });
+    }
+    
+    if (viewHighscoresBtn) {
+        viewHighscoresBtn.addEventListener('click', () => {
+            showHighscoresFromMenu();
+        });
+        
+        viewHighscoresBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            showHighscoresFromMenu();
+        });
+    }
+    
+    // Start the preview animation
+    if (previewCtx) {
+        initPreviewElements();
+        animatePreview();
+    }
+    
+    console.log('🎮 Start screen initialized');
+}
+
+function initPreviewElements() {
+    // Initialize a simplified preview of the game
+    // This creates a static scene showing the alien and some obstacles
+}
+
+function animatePreview() {
+    if (!previewCanvas || !previewCtx || gameStarted) return;
+    
+    // Clear the preview canvas
+    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    
+    // Draw a simplified game preview
+    drawPreviewBackground();
+            drawPreviewDino();
+    drawPreviewObstacles();
+    
+    // Continue animation
+    requestAnimationFrame(animatePreview);
+}
+
+function drawPreviewBackground() {
+    // Draw space background
+    const gradient = previewCtx.createLinearGradient(0, 0, 0, previewCanvas.height);
+    gradient.addColorStop(0, '#0B1026');    // Dark blue at top
+    gradient.addColorStop(0.5, '#1B2735');  // Midnight blue
+    gradient.addColorStop(1, '#2C3E50');    // Lighter blue at bottom
+    
+    previewCtx.fillStyle = gradient;
+    previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+    
+    // Draw lots of twinkling stars
+    previewCtx.fillStyle = 'white';
+    for (let i = 0; i < 50; i++) {
+        const x = (i * 37 + 20) % previewCanvas.width;
+        const y = (i * 23 + 15) % (previewCanvas.height - 40);
+        const twinkle = Math.sin(Date.now() / 1000 + i) * 0.5 + 0.5;
+        const opacity = twinkle * 0.8 + 0.2;
+        const size = Math.random() > 0.8 ? 2 : 1;
+        
+        previewCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+        previewCtx.fillRect(x, y, size, size);
+    }
+    
+    // Draw a beautiful moon
+    const moonX = previewCanvas.width - 80;
+    const moonY = 30;
+    const moonRadius = 25;
+    
+    // Moon glow
+    const moonGradient = previewCtx.createRadialGradient(moonX, moonY, 0, moonX, moonY, moonRadius + 15);
+    moonGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+    moonGradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
+    moonGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    previewCtx.fillStyle = moonGradient;
+    previewCtx.beginPath();
+    previewCtx.arc(moonX, moonY, moonRadius + 15, 0, Math.PI * 2);
+    previewCtx.fill();
+    
+    // Moon surface
+    previewCtx.fillStyle = '#F5F5DC';
+    previewCtx.beginPath();
+    previewCtx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+    previewCtx.fill();
+    
+    // Moon craters
+    previewCtx.fillStyle = 'rgba(200, 200, 180, 0.6)';
+    previewCtx.beginPath();
+    previewCtx.arc(moonX - 8, moonY - 5, 4, 0, Math.PI * 2);
+    previewCtx.fill();
+    
+    previewCtx.beginPath();
+    previewCtx.arc(moonX + 5, moonY + 3, 3, 0, Math.PI * 2);
+    previewCtx.fill();
+    
+    previewCtx.beginPath();
+    previewCtx.arc(moonX - 3, moonY + 8, 2, 0, Math.PI * 2);
+    previewCtx.fill();
+    
+    // Draw distant hills/mountains
+    previewCtx.fillStyle = 'rgba(25, 35, 55, 0.8)';
+    previewCtx.beginPath();
+    previewCtx.moveTo(0, previewCanvas.height - 20);
+    previewCtx.quadraticCurveTo(150, previewCanvas.height - 60, 300, previewCanvas.height - 20);
+    previewCtx.quadraticCurveTo(450, previewCanvas.height - 80, 600, previewCanvas.height - 20);
+    previewCtx.lineTo(600, previewCanvas.height);
+    previewCtx.lineTo(0, previewCanvas.height);
+    previewCtx.fill();
+    
+    // Draw ground
+    previewCtx.fillStyle = '#5D4037';
+    previewCtx.fillRect(0, previewCanvas.height - 20, previewCanvas.width, 20);
+    
+    // Add ground texture
+    previewCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    for (let x = 0; x < previewCanvas.width; x += 15) {
+        const height = 2 + Math.random() * 3;
+        previewCtx.fillRect(x, previewCanvas.height - 20, 2, height);
+    }
+}
+
+function drawPreviewDino() {
+    // Draw the dino using the same pixel art style as the game
+    const x = 40; // Bottom left position
+    const y = previewCanvas.height - 85; // Position so dino is fully visible above ground
+    const scale = 1.2; // Slightly smaller scale to ensure full visibility
+    
+    previewCtx.save();
+    previewCtx.translate(x, y);
+    previewCtx.scale(scale, scale);
+    
+    // Use the same pixel art style as the game dino
+    // Main body - rounder and cuter
+    previewCtx.fillStyle = '#4CAF50'; // Green dino
+    previewCtx.fillRect(8, 16, 18, 14);
+    previewCtx.fillRect(6, 18, 22, 10);
+    
+    // Head - bigger and rounder
+    previewCtx.fillRect(22, 8, 16, 16);
+    previewCtx.fillRect(20, 10, 20, 12);
+    
+    // Cute eyes
+    previewCtx.fillStyle = '#FFFFFF';
+    previewCtx.fillRect(26, 12, 4, 4);
+    previewCtx.fillRect(32, 12, 4, 4);
+    
+    // Eye pupils
+    previewCtx.fillStyle = '#000000';
+    previewCtx.fillRect(27, 13, 2, 2);
+    previewCtx.fillRect(33, 13, 2, 2);
+    
+    // Cute smile
+    previewCtx.fillStyle = '#000000';
+    previewCtx.fillRect(28, 18, 1, 1);
+    previewCtx.fillRect(29, 19, 1, 1);
+    previewCtx.fillRect(30, 19, 1, 1);
+    previewCtx.fillRect(31, 18, 1, 1);
+    
+    // Belly
+    previewCtx.fillStyle = '#81C784';
+    previewCtx.fillRect(10, 20, 14, 8);
+    
+    // Tail
+    previewCtx.fillStyle = '#4CAF50';
+    previewCtx.fillRect(4, 18, 6, 4);
+    previewCtx.fillRect(2, 16, 4, 6);
+    
+    // Cute spikes on back
+    previewCtx.fillStyle = '#2E7D32';
+    previewCtx.fillRect(12, 14, 2, 4);
+    previewCtx.fillRect(16, 12, 2, 4);
+    previewCtx.fillRect(20, 14, 2, 4);
+    
+    // Legs - standing position
+    previewCtx.fillStyle = '#4CAF50';
+    previewCtx.fillRect(12, 30, 4, 14);
+    previewCtx.fillRect(22, 30, 4, 14);
+    
+    // Feet
+    previewCtx.fillRect(10, 42, 6, 2);
+    previewCtx.fillRect(20, 42, 6, 2);
+    
+    previewCtx.restore();
+}
+
+function drawPreviewObstacles() {
+    // Don't draw obstacles in the preview - keep it clean and simple
+    // The alien is peacefully looking at the moon
+}
+
+function showStartScreen() {
+    console.log('📱 Showing start screen...');
+    const startScreen = document.getElementById('startScreen');
+    const gameContainer = document.getElementById('gameContainer');
+    
+    // Stop music when returning to menu
+    pauseMusic();
+    
+    // Hide game canvas/container completely
+    if (gameContainer) {
+        gameContainer.style.display = 'none';
+    }
+    
+    // Show start screen
+    startScreen.style.display = 'flex';
+    startScreen.classList.remove('hidden'); // Remove any hidden class
+    setTimeout(() => {
+        startScreen.classList.add('show');
+    }, 50);
+    gameStarted = false; // Reset game state
+}
+
+function hideStartScreen() {
+    const startScreen = document.getElementById('startScreen');
+    const gameContainer = document.getElementById('gameContainer');
+    
+    if (startScreen) {
+        startScreen.classList.remove('show');
+        startScreen.classList.add('hidden');
+        setTimeout(() => {
+            startScreen.style.display = 'none';
+        }, 500);
+    }
+    
+    // Show game container when actually starting game
+    if (gameContainer) {
+        gameContainer.style.display = 'block';
+    }
+    
+    gameStarted = true;
+}
+
+function hideStartScreenTemporarily() {
+    const startScreen = document.getElementById('startScreen');
+    if (startScreen) {
+        startScreen.classList.remove('show');
+        startScreen.classList.add('hidden');
+        setTimeout(() => {
+            startScreen.style.display = 'none';
+        }, 500);
+    }
+    // DON'T set gameStarted = true, just hide the visual
+}
+
+function startGameFromMenu() {
+    console.log('🚀 Starting game from menu...');
+    hideStartScreen();
+    
+    // Wait for start screen to fade out before starting game
+    setTimeout(() => {
+        startGame();
+        playMusic(); // Start music when game begins
+    }, 300);
+}
+
+function showHighscoresFromMenu() {
+    console.log('🏆 Showing highscores from menu...');
+    if (window.leaderboard && window.leaderboard.showLeaderboard) {
+        // Temporarily hide start screen WITHOUT starting the game
+        hideStartScreenTemporarily();
+        
+        // Show leaderboard modal
+        setTimeout(() => {
+            window.leaderboard.showLeaderboard();
+            
+            // Add event listener to show start screen again when leaderboard closes
+            const leaderboardModal = document.getElementById('leaderboardModal');
+            const closeHandler = () => {
+                showStartScreen();
+                leaderboardModal.removeEventListener('click', closeHandler);
+                document.getElementById('closeLeaderboard').removeEventListener('click', closeHandler);
+                document.querySelector('.close-btn').removeEventListener('click', closeHandler);
+            };
+            
+            leaderboardModal.addEventListener('click', (e) => {
+                if (e.target.id === 'leaderboardModal') {
+                    closeHandler();
+                }
+            });
+            
+            document.getElementById('closeLeaderboard').addEventListener('click', closeHandler);
+            document.querySelector('.close-btn').addEventListener('click', closeHandler);
+        }, 300);
+    } else {
+        console.error('Leaderboard not available yet');
+    }
+}
+
 function startGame() {
     // Reset game state
     score = 0;
@@ -1098,6 +1456,7 @@ function startGame() {
     birds.length = 0;
     platforms.length = 0;
     isGameOver = false;
+    gameStarted = true; // Set this to true to enable the game loop
     dino.y = ground.y - dino.height;
     isJumping = false;
     canDoubleJump = false;
@@ -1105,6 +1464,12 @@ function startGame() {
     lastObstacleSpawn = Date.now();
     lastPlatformSpawn = Date.now();
     gameSpeedMultiplier = 1;
+    
+    // Show game container
+    const gameContainer = document.getElementById('gameContainer');
+    if (gameContainer) {
+        gameContainer.style.display = 'block';
+    }
     
     // Reset boss system
     boss = null;
@@ -1125,23 +1490,28 @@ function startGame() {
     gameOverText.classList.remove('visible');
     restartButton.classList.remove('visible');
     
+    // Hide start screen if it's visible
+    hideStartScreen();
+    
     // Hide high score screen
     if (window.leaderboard) {
         window.leaderboard.hideHighScoreScreen();
     }
     
-    // Restart music with new system
-    playMusic();
+    // Restart music with new system (but don't auto-start here, let startGameFromMenu handle it)
+    // playMusic();
     invincible = false;
     invincibilityTimer = 0;
     invincibilityChargesUsed = 0;
+    
+    console.log('🎮 Game started!');
 }
 
 // Add a proper lastUpdateTime variable for delta time calculation
 let lastUpdateTime = 0;
 
 function update(currentTime) {
-    if (isGameOver) return;
+    if (isGameOver || !gameStarted) return;
 
     // Calculate proper delta time
     const deltaTime = currentTime - lastUpdateTime;
@@ -1211,6 +1581,12 @@ function checkCollision(rect1, rect2) {
 }
 
 function draw() {
+    // If game hasn't started, just clear and return
+    if (!gameStarted) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+    
     // Night sky gradient
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     gradient.addColorStop(0, '#0B1026');    // Dark blue at top
@@ -1399,17 +1775,6 @@ function draw() {
     const scoreText = `Score: ${score.toString().padStart(3, '0')}`;
     ctx.fillText(scoreText, canvas.width - 20, 15);
     
-    // Music indicator
-    if (!musicStarted) {
-        ctx.font = '8px "Press Start 2P"';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.fillText('🎵 Click to start zen music', canvas.width - 20, 35);
-    } else {
-        ctx.font = '8px "Press Start 2P"';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.fillText('🎵 Zen music playing', canvas.width - 20, 35);
-    }
-    
     // Boss warning/indicator
     if (bossActive && boss) {
         ctx.font = '10px "Press Start 2P"';
@@ -1468,8 +1833,13 @@ function handleKeyDown(event) {
     
     if (event.code === 'Space') {
         event.preventDefault(); // Prevent page scroll
-        if (isGameOver) {
-            startGame();
+        
+        // If game hasn't started, start it from the start screen
+        if (!gameStarted) {
+            startGameFromMenu();
+        } else if (isGameOver) {
+            // Spacebar does NOTHING when game is over - use buttons instead
+            return;
         } else {
             jump();
         }
@@ -1479,6 +1849,12 @@ function handleKeyDown(event) {
 // Handle touch events
 function handleTouch(event) {
     event.preventDefault();  // Prevent default touch behavior
+    
+    // If game hasn't started, start it from menu
+    if (!gameStarted) {
+        startGameFromMenu();
+        return;
+    }
     
     if (isGameOver) {
         return;  // Don't handle jumps if game is over
@@ -1500,18 +1876,26 @@ function handleTouch(event) {
     }
 }
 
-// Make startGame available globally for the restart button
+// Make startGame and start screen functions available globally
 window.startGame = startGame;
+window.showStartScreen = showStartScreen;
+window.hideStartScreen = hideStartScreen;
+window.playMusic = playMusic;
 
-// Start game
+// Initialize game elements but don't start the game yet
 initStars();
 initClouds();
 initFish();
-startGame();
-gameLoop();
+gameLoop(); // Start the game loop (but game won't update until gameStarted = true)
 
 // Initialize music system
 initMusic();
+
+// Initialize and show start screen
+document.addEventListener('DOMContentLoaded', () => {
+    initStartScreen();
+    showStartScreen();
+});
 
 // Fix the DOMContentLoaded event handler
 document.addEventListener('DOMContentLoaded', () => {
@@ -1559,3 +1943,5 @@ window.addEventListener('keydown', (e) => {
         activateInvincibility();
     }
 });
+
+

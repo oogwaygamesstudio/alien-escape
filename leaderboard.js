@@ -98,9 +98,22 @@ class Leaderboard {
 
         document.getElementById('playAgainBtn').addEventListener('click', () => {
             this.hideHighScoreScreen();
-            // Small delay to let animation finish before starting game
+            // Small delay to let animation finish before starting game directly
             setTimeout(() => {
                 window.startGame();
+                if (window.playMusic) {
+                    window.playMusic(); // Start music when restarting
+                }
+            }, 200);
+        });
+
+        document.getElementById('mainMenuBtn').addEventListener('click', () => {
+            this.hideHighScoreScreen();
+            // Small delay to let animation finish before showing start screen
+            setTimeout(() => {
+                if (window.showStartScreen) {
+                    window.showStartScreen();
+                }
             }, 200);
         });
 
@@ -181,14 +194,18 @@ class Leaderboard {
         }
         
         // Check if it's a global high score (determines if name input shows)
+        // Pass a flag to indicate we should wait for the check before hiding form
         this.checkGlobalHighScore(score);
         return true;
     }
 
     async checkGlobalHighScore(score) {
+        // Always show the high score form so users can save their scores locally
+        console.log('💾 Showing name input form for score submission');
+        this.showHighScoreForm();
+        
         if (!db) {
-            console.log('Firebase not available, showing name input for local storage');
-            this.showHighScoreForm();
+            console.log('Firebase not available, will save to local storage');
             return;
         }
 
@@ -200,13 +217,29 @@ class Leaderboard {
 
             const scores = snapshot.docs.map(doc => doc.data());
             
-            // If less than 10 scores or score beats the 10th place
+            // Check if it's a global high score for display purposes
             if (scores.length < 10 || score > (scores[9]?.score || 0)) {
-                this.showHighScoreForm();
+                console.log('🎉 Global high score detected!');
+                // Update form title to show it's a global high score
+                const label = document.getElementById('nameInputLabel');
+                if (label) {
+                    label.innerHTML = '🏆 GLOBAL HIGH SCORE! 🏆<br>Enter your name for the global leaderboard:';
+                }
+            } else {
+                console.log('📝 Regular score - will save locally');
+                // Update form title for local score
+                const label = document.getElementById('nameInputLabel');
+                if (label) {
+                    label.innerHTML = '💾 SAVE YOUR SCORE! 💾<br>Enter your name:';
+                }
             }
         } catch (error) {
-            console.log('Could not check global scores, showing name input anyway:', error);
-            this.showHighScoreForm(); // Show anyway if offline
+            console.log('Could not check global scores, will save locally:', error);
+            // Update form title for offline mode
+            const label = document.getElementById('nameInputLabel');
+            if (label) {
+                label.innerHTML = '📱 SAVE OFFLINE SCORE! 📱<br>Enter your name:';
+            }
         }
     }
 
@@ -231,8 +264,8 @@ class Leaderboard {
         // Calculate and show player rank
         this.calculatePlayerRank(score);
         
-        // Hide the name form initially (will be shown if it's a high score)
-        this.hideHighScoreForm();
+        // Don't hide the form here - let checkGlobalHighScore determine if it should show/hide
+        // The form starts hidden by default in HTML, so we only show it if it's a high score
     }
 
     hideHighScoreScreen() {
@@ -351,15 +384,9 @@ class Leaderboard {
     async showLeaderboard() {
         document.getElementById('leaderboardModal').style.display = 'block';
         
-        // Update title based on connection status
-        const title = document.getElementById('leaderboardTitle');
-        if (db) {
-            title.textContent = '🏆 GLOBAL TOP 10 🏆';
-        } else {
-            title.textContent = '📱 LOCAL SCORES 📱';
-        }
-        
-        await this.loadLeaderboard();
+        // Load both elite and global sections for the modal
+        this.loadModalEliteLeaderboard();
+        this.loadModalGlobalLeaderboard();
     }
 
     hideLeaderboard() {
@@ -724,6 +751,235 @@ class Leaderboard {
             setTimeout(() => {
                 rankElement.classList.add('show');
             }, 800);
+        }
+    }
+
+    // Modal leaderboard functions (for main menu highscores)
+    async loadModalEliteLeaderboard() {
+        const leaderboardList = document.getElementById('modalEliteLeaderboardList');
+        leaderboardList.innerHTML = '<li>Loading...</li>';
+
+        if (!db) {
+            // Load from local storage
+            this.loadLocalModalEliteLeaderboard();
+            return;
+        }
+
+        try {
+            const snapshot = await db.collection('scores')
+                .orderBy('score', 'desc')
+                .limit(10)
+                .get();
+
+            const scores = snapshot.docs.map(doc => doc.data());
+
+            if (scores.length === 0) {
+                leaderboardList.innerHTML = '<li style="text-align: center; color: rgba(255,255,255,0.7);">No scores yet!</li>';
+                return;
+            }
+
+            leaderboardList.innerHTML = '';
+            scores.forEach((score, index) => {
+                const li = document.createElement('li');
+                const rank = index + 1;
+                const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `👑`;
+                
+                li.innerHTML = `
+                    <span>${medal} ${score.name}</span>
+                    <span>${score.score.toLocaleString()}</span>
+                `;
+                li.style.padding = '6px 0';
+                li.style.borderBottom = '1px solid rgba(255,255,255,0.2)';
+                li.style.fontSize = '9px';
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                li.style.alignItems = 'center';
+                
+                // Special styling for top 3
+                if (rank === 1) {
+                    li.style.color = '#FFD700';
+                    li.style.background = 'rgba(255, 215, 0, 0.2)';
+                    li.style.borderRadius = '4px';
+                    li.style.padding = '8px 6px';
+                    li.style.fontWeight = 'bold';
+                } else if (rank === 2) {
+                    li.style.color = '#C0C0C0';
+                    li.style.background = 'rgba(192, 192, 192, 0.1)';
+                    li.style.borderRadius = '4px';
+                    li.style.padding = '8px 6px';
+                } else if (rank === 3) {
+                    li.style.color = '#CD7F32';
+                    li.style.background = 'rgba(205, 127, 50, 0.1)';
+                    li.style.borderRadius = '4px';
+                    li.style.padding = '8px 6px';
+                }
+                
+                leaderboardList.appendChild(li);
+            });
+
+        } catch (error) {
+            console.error('Error loading modal elite leaderboard:', error);
+            // Fallback to local leaderboard
+            this.loadLocalModalEliteLeaderboard();
+        }
+    }
+
+    async loadModalGlobalLeaderboard() {
+        const leaderboardList = document.getElementById('modalGlobalLeaderboardList');
+        leaderboardList.innerHTML = '<li>Loading global rankings...</li>';
+
+        if (!db) {
+            // Load from local storage
+            this.loadLocalModalGlobalLeaderboard();
+            return;
+        }
+
+        try {
+            const snapshot = await db.collection('scores')
+                .orderBy('score', 'desc')
+                .limit(1000)
+                .get();
+
+            const scores = snapshot.docs.map(doc => doc.data());
+
+            if (scores.length === 0) {
+                leaderboardList.innerHTML = '<li style="text-align: center; color: rgba(255,255,255,0.7);">No global scores yet!</li>';
+                return;
+            }
+
+            leaderboardList.innerHTML = '';
+            scores.forEach((score, index) => {
+                const li = document.createElement('li');
+                const rank = index + 1;
+                
+                // Skip top 10 (they're shown in elite section)
+                if (rank <= 10) return;
+                
+                li.innerHTML = `
+                    <span>#${rank} ${score.name}</span>
+                    <span>${score.score.toLocaleString()}</span>
+                `;
+                li.style.padding = '4px 0';
+                li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                li.style.fontSize = '8px';
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                li.style.alignItems = 'center';
+                
+                leaderboardList.appendChild(li);
+            });
+
+            // If less than 11 scores, show message
+            if (scores.length <= 10) {
+                const messageEl = document.createElement('li');
+                messageEl.innerHTML = '<span style="text-align: center; color: rgba(255,255,255,0.5); width: 100%;">Only top 10 players so far!</span>';
+                messageEl.style.textAlign = 'center';
+                messageEl.style.padding = '20px';
+                messageEl.style.borderBottom = 'none';
+                leaderboardList.appendChild(messageEl);
+            }
+
+        } catch (error) {
+            console.error('Error loading modal global leaderboard:', error);
+            // Fallback to local leaderboard
+            this.loadLocalModalGlobalLeaderboard();
+        }
+    }
+
+    loadLocalModalEliteLeaderboard() {
+        const leaderboardList = document.getElementById('modalEliteLeaderboardList');
+        
+        try {
+            const localScores = JSON.parse(localStorage.getItem('localScores')) || [];
+            
+            if (localScores.length === 0) {
+                leaderboardList.innerHTML = '<li style="text-align: center; color: rgba(255,255,255,0.7);">No local scores yet!</li>';
+                return;
+            }
+
+            leaderboardList.innerHTML = '';
+
+            // Show only top 10 for elite section
+            const top10 = localScores.slice(0, 10);
+            top10.forEach((score, index) => {
+                const li = document.createElement('li');
+                const rank = index + 1;
+                const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `👑`;
+                
+                li.innerHTML = `
+                    <span>${medal} ${score.name}</span>
+                    <span>${score.score.toLocaleString()}</span>
+                `;
+                li.style.padding = '6px 0';
+                li.style.borderBottom = '1px solid rgba(255,255,255,0.2)';
+                li.style.fontSize = '9px';
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                li.style.alignItems = 'center';
+                
+                // Special styling for top 3
+                if (rank === 1) {
+                    li.style.color = '#FFD700';
+                    li.style.background = 'rgba(255, 215, 0, 0.2)';
+                    li.style.borderRadius = '4px';
+                    li.style.padding = '8px 6px';
+                } else if (rank === 2) {
+                    li.style.color = '#C0C0C0';
+                    li.style.background = 'rgba(192, 192, 192, 0.1)';
+                    li.style.borderRadius = '4px';
+                    li.style.padding = '8px 6px';
+                } else if (rank === 3) {
+                    li.style.color = '#CD7F32';
+                    li.style.background = 'rgba(205, 127, 50, 0.1)';
+                    li.style.borderRadius = '4px';
+                    li.style.padding = '8px 6px';
+                }
+                
+                leaderboardList.appendChild(li);
+            });
+
+        } catch (error) {
+            console.error('Error loading local modal elite leaderboard:', error);
+            leaderboardList.innerHTML = '<li style="text-align: center; color: #FF5252;">Error loading scores</li>';
+        }
+    }
+
+    loadLocalModalGlobalLeaderboard() {
+        const leaderboardList = document.getElementById('modalGlobalLeaderboardList');
+        
+        try {
+            const localScores = JSON.parse(localStorage.getItem('localScores')) || [];
+            
+            if (localScores.length <= 10) {
+                leaderboardList.innerHTML = '<li style="text-align: center; color: rgba(255,255,255,0.5);">Only top 10 local players!<br>📱 Playing offline</li>';
+                return;
+            }
+
+            leaderboardList.innerHTML = '';
+
+            // Show ranks 11 and beyond
+            const beyond10 = localScores.slice(10);
+            beyond10.forEach((score, index) => {
+                const li = document.createElement('li');
+                const rank = index + 11;
+                
+                li.innerHTML = `
+                    <span>#${rank} ${score.name}</span>
+                    <span>${score.score.toLocaleString()}</span>
+                `;
+                li.style.padding = '4px 0';
+                li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                li.style.fontSize = '8px';
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                li.style.alignItems = 'center';
+                
+                leaderboardList.appendChild(li);
+            });
+
+        } catch (error) {
+            console.error('Error loading local modal global leaderboard:', error);
+            leaderboardList.innerHTML = '<li style="text-align: center; color: #FF5252;">Error loading scores</li>';
         }
     }
 
