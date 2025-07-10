@@ -1662,33 +1662,47 @@ function draw() {
         ctx.fillRect(x, ground.y, 2, height);
     }
 
-    // Professional deep space water effect below ground
-    const deepSpaceGradient = ctx.createLinearGradient(0, ground.y + ground.height, 0, canvas.height);
-    deepSpaceGradient.addColorStop(0, 'rgba(26, 38, 57, 0.95)');     // Subtle transition from night sky
-    deepSpaceGradient.addColorStop(0.3, 'rgba(15, 24, 39, 0.98)');   // Deeper blue-black
-    deepSpaceGradient.addColorStop(0.7, 'rgba(12, 18, 32, 0.99)');   // Almost black with hint of blue
-    deepSpaceGradient.addColorStop(1, 'rgba(8, 12, 24, 1)');         // Deep space black
-    ctx.fillStyle = deepSpaceGradient;
+    // Enhanced underwater environment with more visible effects
+    const underwaterGradient = ctx.createLinearGradient(0, ground.y + ground.height, 0, canvas.height);
+    underwaterGradient.addColorStop(0, 'rgba(30, 58, 87, 0.9)');      // Ocean blue transition
+    underwaterGradient.addColorStop(0.3, 'rgba(20, 40, 67, 0.95)');   // Deeper ocean blue
+    underwaterGradient.addColorStop(0.7, 'rgba(15, 28, 47, 0.98)');   // Deep ocean
+    underwaterGradient.addColorStop(1, 'rgba(10, 18, 32, 1)');        // Ocean depths
+    ctx.fillStyle = underwaterGradient;
     ctx.fillRect(0, ground.y + ground.height, canvas.width, canvas.height - (ground.y + ground.height));
 
-    // Add subtle underwater stars/sparkles for cohesive night theme
-    for (let i = 0; i < 15; i++) {
-        const sparkleX = (i * 67 + score * 0.1) % canvas.width;
-        const sparkleY = ground.y + ground.height + 20 + (i * 23) % (canvas.height - ground.y - ground.height - 40);
-        const twinkle = Math.sin(Date.now() / 2000 + i * 0.5) * 0.3 + 0.7;
-        const opacity = twinkle * 0.15; // Very subtle
+    // Enhanced underwater bubbles and sparkles - much more visible
+    for (let i = 0; i < 25; i++) {
+        const bubbleX = (i * 45 + score * 0.2) % canvas.width;
+        const bubbleY = ground.y + ground.height + 15 + (i * 18) % (canvas.height - ground.y - ground.height - 30);
+        const twinkle = Math.sin(Date.now() / 1500 + i * 0.3) * 0.5 + 0.5;
+        const opacity = twinkle * 0.4 + 0.2; // Much more visible
         
-        ctx.fillStyle = `rgba(100, 150, 200, ${opacity})`;
+        // Larger, more visible bubbles
+        ctx.fillStyle = `rgba(120, 180, 220, ${opacity})`;
         ctx.beginPath();
-        ctx.arc(sparkleX, sparkleY, 1, 0, Math.PI * 2);
+        ctx.arc(bubbleX, bubbleY, 2 + Math.sin(Date.now() / 1000 + i) * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add bubble highlights
+        ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.6})`;
+        ctx.beginPath();
+        ctx.arc(bubbleX - 0.5, bubbleY - 0.5, 1, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // Elegant subtle water currents (much more refined)
-    ctx.fillStyle = 'rgba(30, 50, 80, 0.1)'; // Very subtle
-    for (let x = 0; x < canvas.width; x += 40) {
-        const currentHeight = Math.sin((x + score * 0.5) * 0.01) * 1;
-        ctx.fillRect(x, ground.y + ground.height + currentHeight + 15, 40, 2);
+    // Enhanced water currents with visible wave patterns
+    ctx.fillStyle = 'rgba(50, 100, 150, 0.3)'; // More visible
+    for (let x = 0; x < canvas.width; x += 30) {
+        const currentHeight = Math.sin((x + score * 0.5) * 0.015) * 3;
+        ctx.fillRect(x, ground.y + ground.height + currentHeight + 12, 30, 3);
+    }
+    
+    // Add secondary wave layer
+    ctx.fillStyle = 'rgba(80, 140, 200, 0.2)';
+    for (let x = 0; x < canvas.width; x += 25) {
+        const waveHeight = Math.sin((x + score * 0.3) * 0.02 + Math.PI / 4) * 2;
+        ctx.fillRect(x, ground.y + ground.height + waveHeight + 25, 25, 2);
     }
 
     // Draw fish

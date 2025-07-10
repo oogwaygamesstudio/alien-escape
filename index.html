@@ -417,7 +417,7 @@
         }
         
         .gameOverButtons button {
-            background: #4CAF50;
+            background: transparent;
             border: 3px solid #fff;
             border-radius: 12px;
             padding: 15px 25px;
@@ -431,9 +431,23 @@
             min-width: 180px;
             position: relative;
             overflow: hidden;
+            box-sizing: border-box;
         }
         
         .gameOverButtons button::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            right: 3px;
+            bottom: 3px;
+            background: #4CAF50;
+            border-radius: 9px;
+            z-index: -1;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .gameOverButtons button::after {
             content: '';
             position: absolute;
             top: 0;
@@ -442,16 +456,20 @@
             height: 100%;
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
             transition: left 0.5s;
+            z-index: 1;
+        }
+        
+                .gameOverButtons button:hover::after {
+            left: 100%;
+        }
+
+        .gameOverButtons button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 9px 0 #2E7D32, 0 12px 20px rgba(0,0,0,0.4);
         }
         
         .gameOverButtons button:hover::before {
-            left: 100%;
-        }
-        
-        .gameOverButtons button:hover {
             background: #66BB6A;
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 9px 0 #2E7D32, 0 12px 20px rgba(0,0,0,0.4);
         }
         
         .gameOverButtons button:active {
@@ -459,53 +477,71 @@
             box-shadow: 0 3px 0 #2E7D32, 0 5px 10px rgba(0,0,0,0.3);
         }
         
-        .gameOverButtons button.restart {
-            background: #FF5252;
+                .gameOverButtons button.restart {
             box-shadow: 0 6px 0 #C62828, 0 8px 15px rgba(0,0,0,0.3);
         }
         
+        .gameOverButtons button.restart::before {
+            background: #FF5252;
+        }
+
         .gameOverButtons button.restart:hover {
-            background: #FF7070;
             box-shadow: 0 9px 0 #C62828, 0 12px 20px rgba(0,0,0,0.4);
         }
         
+        .gameOverButtons button.restart:hover::before {
+            background: #FF7070;
+        }
+
         .gameOverButtons button.restart:active {
             box-shadow: 0 3px 0 #C62828, 0 5px 10px rgba(0,0,0,0.3);
         }
         
-        /* Main Menu Button Styling */
+                /* Main Menu Button Styling */
         #mainMenuBtn {
-            background: #2196F3 !important;
             box-shadow: 0 6px 0 #1976D2, 0 8px 15px rgba(0,0,0,0.3) !important;
         }
         
+        #mainMenuBtn::before {
+            background: #2196F3 !important;
+        }
+
         #mainMenuBtn:hover {
-            background: #42A5F5 !important;
             box-shadow: 0 9px 0 #1976D2, 0 12px 20px rgba(0,0,0,0.4) !important;
         }
         
+        #mainMenuBtn:hover::before {
+            background: #42A5F5 !important;
+        }
+
         #mainMenuBtn:active {
             box-shadow: 0 3px 0 #1976D2, 0 5px 10px rgba(0,0,0,0.3) !important;
         }
-        
+
         /* Share Score Button Styling */
         #shareScoreBtn {
-            background: #FF9800 !important;
             box-shadow: 0 6px 0 #F57C00, 0 8px 15px rgba(0,0,0,0.3) !important;
         }
         
+        #shareScoreBtn::before {
+            background: #FF9800 !important;
+        }
+
         #shareScoreBtn:hover {
-            background: #FFB74D !important;
             box-shadow: 0 9px 0 #F57C00, 0 12px 20px rgba(0,0,0,0.4) !important;
         }
         
+        #shareScoreBtn:hover::before {
+            background: #FFB74D !important;
+        }
+
         #shareScoreBtn:active {
             box-shadow: 0 3px 0 #F57C00, 0 5px 10px rgba(0,0,0,0.3) !important;
         }
         
-        /* High Score Form Button Styling */
+                /* High Score Form Button Styling */
         #submitHighScore, #skipHighScore {
-            background: #4CAF50;
+            background: transparent;
             border: 3px solid #fff;
             border-radius: 8px;
             padding: 10px 16px;
@@ -517,12 +553,31 @@
             transition: all 0.3s;
             text-shadow: 2px 2px 0 #000;
             box-shadow: 0 4px 0 #2E7D32, 0 6px 10px rgba(0,0,0,0.3);
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
         }
         
+        #submitHighScore::before, #skipHighScore::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            right: 3px;
+            bottom: 3px;
+            background: #4CAF50;
+            border-radius: 5px;
+            z-index: -1;
+            transition: all 0.3s;
+        }
+
         #submitHighScore:hover {
-            background: #66BB6A;
             transform: translateY(-2px);
             box-shadow: 0 6px 0 #2E7D32, 0 8px 12px rgba(0,0,0,0.4);
+        }
+        
+        #submitHighScore:hover::before {
+            background: #66BB6A;
         }
         
         #submitHighScore:active {
@@ -530,15 +585,21 @@
             box-shadow: 0 2px 0 #2E7D32, 0 3px 6px rgba(0,0,0,0.3);
         }
         
-        #skipHighScore {
-            background: #FF5252;
+                #skipHighScore {
             box-shadow: 0 4px 0 #C62828, 0 6px 10px rgba(0,0,0,0.3);
         }
         
+        #skipHighScore::before {
+            background: #FF5252;
+        }
+
         #skipHighScore:hover {
-            background: #FF7070;
             transform: translateY(-2px);
             box-shadow: 0 6px 0 #C62828, 0 8px 12px rgba(0,0,0,0.4);
+        }
+        
+        #skipHighScore:hover::before {
+            background: #FF7070;
         }
         
         #skipHighScore:active {
