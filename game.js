@@ -1076,28 +1076,75 @@ function initStartScreen() {
     const playGameBtn = document.getElementById('playGameBtn');
     const viewHighscoresBtn = document.getElementById('viewHighscoresBtn');
     
+    console.log('🔍 Checking buttons:');
+    console.log('playGameBtn:', playGameBtn);
+    console.log('viewHighscoresBtn:', viewHighscoresBtn);
+    
     if (playGameBtn) {
-        playGameBtn.addEventListener('click', () => {
+        console.log('✅ Adding event listeners to playGameBtn');
+        
+        playGameBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🎮 Play Game button clicked!');
             startGameFromMenu();
         });
         
-        playGameBtn.addEventListener('touchstart', (e) => {
+        playGameBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
+            e.stopPropagation();
+            console.log('🎮 Play Game button touched!');
             startGameFromMenu();
         });
+        
+        // Also handle touchstart to prevent interference
+        playGameBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    } else {
+        console.error('❌ playGameBtn not found!');
     }
     
     if (viewHighscoresBtn) {
+        console.log('✅ Adding event listeners to viewHighscoresBtn');
+        
+        // Simple direct click first
+        viewHighscoresBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🏆 Highscore button direct onclick!');
+            showHighscoresFromMenu();
+        };
+        
         viewHighscoresBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            console.log('🏆 Highscore button clicked!');
             showHighscoresFromMenu();
         });
         
+        viewHighscoresBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🏆 Highscore button touched!');
+            showHighscoresFromMenu();
+        });
+        
+        // Also handle touchstart to prevent interference
         viewHighscoresBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            showHighscoresFromMenu();
+        });
+        
+        // Test if button is actually clickable
+        console.log('🔍 Button details:', {
+            id: viewHighscoresBtn.id,
+            className: viewHighscoresBtn.className,
+            style: viewHighscoresBtn.style.cssText,
+            disabled: viewHighscoresBtn.disabled,
+            offsetWidth: viewHighscoresBtn.offsetWidth,
+            offsetHeight: viewHighscoresBtn.offsetHeight
         });
     } else {
         console.error('❌ viewHighscoresBtn not found!');
@@ -1377,6 +1424,9 @@ function startGameFromMenu() {
 
 function showHighscoresFromMenu() {
     console.log('🏆 Showing highscores from menu...');
+    console.log('🔍 Debug info:');
+    console.log('- window.leaderboard:', window.leaderboard);
+    console.log('- typeof window.leaderboard.showLeaderboard:', typeof window.leaderboard?.showLeaderboard);
     
     // First check if modal exists
     const leaderboardModal = document.getElementById('leaderboardModal');
@@ -1386,91 +1436,61 @@ function showHighscoresFromMenu() {
         return;
     }
     
-    // Simple direct call - no complex retry needed
-    if (window.leaderboard && typeof window.leaderboard.showLeaderboard === 'function') {
-        console.log('✅ Leaderboard ready - showing now');
+    console.log('✅ Leaderboard modal found');
+    
+    // SIMPLE DIRECT MODAL SHOW - bypass all complex logic
+    console.log('🔧 Showing modal directly...');
+    leaderboardModal.style.display = 'block';
+    leaderboardModal.style.zIndex = '9999';
+    leaderboardModal.style.position = 'fixed';
+    leaderboardModal.style.top = '0';
+    leaderboardModal.style.left = '0';
+    leaderboardModal.style.width = '100%';
+    leaderboardModal.style.height = '100%';
+    
+    // Try to load leaderboards if available
+    if (window.leaderboard) {
         try {
-            window.leaderboard.showLeaderboard();
-            
-            // Ensure modal visibility (fix for CSS conflicts)
-            setTimeout(() => {
-                const modal = document.getElementById('leaderboardModal');
-                if (modal && window.getComputedStyle(modal).display === 'none') {
-                    // Only apply forced styling if modal isn't showing
-                    modal.style.display = 'block';
-                    modal.style.zIndex = '9999';
-                    console.log('🔧 Applied visibility fix for leaderboard modal');
-                }
-            }, 50);
-            
-            // Add simple close handler to return to menu
-            const closeHandler = () => {
-                // Make sure we return to start screen when closed
-                if (!gameStarted) {
-                    console.log('📱 Returning to start screen');
-                    showStartScreen();
-                }
-            };
-            
-            // Add one-time event listeners
-            const closeBtn = document.getElementById('closeLeaderboard');
-            const xBtn = document.querySelector('.close-btn');
-            
-            if (closeBtn) {
-                closeBtn.addEventListener('click', closeHandler, { once: true });
+            if (window.leaderboard.loadModalEliteLeaderboard) {
+                window.leaderboard.loadModalEliteLeaderboard();
             }
-            if (xBtn) {
-                xBtn.addEventListener('click', closeHandler, { once: true });
+            if (window.leaderboard.loadModalGlobalLeaderboard) {
+                window.leaderboard.loadModalGlobalLeaderboard();
             }
-            
-            leaderboardModal.addEventListener('click', (e) => {
-                if (e.target.id === 'leaderboardModal') {
-                    closeHandler();
-                }
-            }, { once: true });
         } catch (error) {
-            console.error('❌ Error calling showLeaderboard():', error);
-            alert('Error showing leaderboard: ' + error.message);
+            console.error('Error loading leaderboards:', error);
         }
     } else {
-        console.error('❌ Leaderboard method not available - using fallback');
-        
-        // Manual fallback - show modal directly
-        console.log('🔧 Using fallback method to show leaderboard...');
-        leaderboardModal.style.display = 'block';
-        leaderboardModal.style.zIndex = '9999';
-        
-        // Try to load leaderboards manually
-        if (window.leaderboard) {
-            try {
-                if (window.leaderboard.loadModalEliteLeaderboard) {
-                    window.leaderboard.loadModalEliteLeaderboard();
-                }
-                if (window.leaderboard.loadModalGlobalLeaderboard) {
-                    window.leaderboard.loadModalGlobalLeaderboard();
-                }
-            } catch (error) {
-                console.error('Error loading leaderboards manually:', error);
-            }
-        }
-        
-        // Add close listeners
-        const closeBtn = document.getElementById('closeLeaderboard');
-        const xBtn = document.querySelector('.close-btn');
-        
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                leaderboardModal.style.display = 'none';
-                if (!gameStarted) showStartScreen();
-            }, { once: true });
-        }
-        if (xBtn) {
-            xBtn.addEventListener('click', () => {
-                leaderboardModal.style.display = 'none';
-                if (!gameStarted) showStartScreen();
-            }, { once: true });
-        }
+        console.log('⚠️ No leaderboard system available');
     }
+    
+    // Add close listeners
+    const closeBtn = document.getElementById('closeLeaderboard');
+    const xBtn = document.querySelector('.close-btn');
+    
+    const closeHandler = () => {
+        console.log('🔧 Closing leaderboard modal');
+        leaderboardModal.style.display = 'none';
+        if (!gameStarted) {
+            showStartScreen();
+        }
+    };
+    
+    if (closeBtn) {
+        closeBtn.onclick = closeHandler;
+    }
+    if (xBtn) {
+        xBtn.onclick = closeHandler;
+    }
+    
+    // Click outside to close
+    leaderboardModal.onclick = (e) => {
+        if (e.target === leaderboardModal) {
+            closeHandler();
+        }
+    };
+    
+    console.log('✅ Leaderboard modal should now be visible');
 }
 
 function startGame() {
@@ -1517,10 +1537,19 @@ function startGame() {
     // Hide start screen if it's visible
     hideStartScreen();
     
-    // Don't hide high score screen when starting fresh - only when actually needed
-    // if (window.leaderboard) {
-    //     window.leaderboard.hideHighScoreScreen();
-    // }
+    // Make sure no modal or highscore screen is visible when starting game
+    const leaderboardModal = document.getElementById('leaderboardModal');
+    const highScoreScreen = document.getElementById('highScoreScreen');
+    
+    if (leaderboardModal && leaderboardModal.style.display === 'block') {
+        leaderboardModal.style.display = 'none';
+        console.log('🔧 Closed leaderboard modal when starting game');
+    }
+    
+    if (highScoreScreen && !highScoreScreen.classList.contains('hidden')) {
+        highScoreScreen.classList.add('hidden');
+        console.log('🔧 Closed highscore screen when starting game');
+    }
     
     // Restart music with new system (but don't auto-start here, let startGameFromMenu handle it)
     // playMusic();
@@ -1917,13 +1946,31 @@ function handleKeyDown(event) {
 
 // Handle touch events
 function handleTouch(event) {
-    event.preventDefault();  // Prevent default touch behavior
-    
-    // Check if touch is on UI buttons (prevent touch-to-jump on buttons)
+    // Check if touch is on UI buttons or interactive elements FIRST
     const target = event.target;
-    if (target && target.id === 'invincibilityButton') {
-        return; // Don't handle touch if it's on a UI button
+    const targetId = target ? target.id : '';
+    const targetClass = target ? target.className : '';
+    
+    // If touch is on any button, modal, or interactive element, don't handle it here
+    if (target && (
+        target.tagName === 'BUTTON' ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'A' ||
+        targetId === 'invincibilityButton' ||
+        targetId === 'playGameBtn' ||
+        targetId === 'viewHighscoresBtn' ||
+        targetId === 'musicToggleBtn' ||
+        targetClass.includes('btn') ||
+        targetClass.includes('button') ||
+        target.closest('.modal') ||
+        target.closest('#leaderboardModal') ||
+        target.closest('#highScoreScreen') ||
+        target.closest('#startScreen')
+    )) {
+        return; // Let the specific button handlers deal with it
     }
+    
+    event.preventDefault();  // Prevent default touch behavior
     
     // CRITICAL: Check if highscore screen is visible (prevent touch-anywhere-restart)
     const highScoreScreen = document.getElementById('highScoreScreen');
@@ -1935,6 +1982,7 @@ function handleTouch(event) {
     const highScoreForm = document.getElementById('highScoreForm');
     const leaderboardModal = document.getElementById('leaderboardModal');
     const nameInputModal = document.getElementById('nameInputModal');
+    const startScreen = document.getElementById('startScreen');
     
     if (highScoreForm && !highScoreForm.classList.contains('hidden')) {
         return; // Don't handle touch if highscore form is visible
@@ -1948,8 +1996,13 @@ function handleTouch(event) {
         return; // Don't handle touch if name input modal is visible
     }
     
+    if (startScreen && startScreen.style.display === 'block') {
+        return; // Don't handle touch if start screen is visible - buttons should handle menu actions
+    }
+    
     // If game hasn't started, start it from menu
     if (!gameStarted) {
+        console.log('🎮 Touch detected - starting game from menu');
         startGameFromMenu();
         return;
     }
@@ -1958,6 +2011,8 @@ function handleTouch(event) {
         return;  // Don't handle jumps if game is over
     }
 
+    // Handle jumping in game
+    console.log('🦘 Touch detected - jumping!');
     const now = Date.now();
     
     if (!lastTapTime) {
@@ -2019,10 +2074,8 @@ document.addEventListener('DOMContentLoaded', () => {
             toggleMusic();
         });
     }
-});
-
-// Fix the DOMContentLoaded event handler
-document.addEventListener('DOMContentLoaded', () => {
+    
+    // Initialize invincibility button
     const invBtn = document.getElementById('invincibilityButton');
     
     function updateInvBtn() {
