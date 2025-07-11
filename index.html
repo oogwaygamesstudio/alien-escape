@@ -979,16 +979,16 @@
         }
         #invincibilityButton.powerup-btn {
             position: absolute;
-            bottom: 18vh;
-            left: 4vw;
-            width: 64px;
-            height: 64px;
+            bottom: 24vh;
+            left: 2vw;
+            width: 58px;
+            height: 58px;
             border-radius: 50%;
-            background: linear-gradient(135deg, gold, orange 60%, #fff 100%);
-            border: 3px solid #fff;
-            box-shadow: 0 2px 8px 1px rgba(255,215,0,0.4), 0 0 0 3px #FFD70044;
-            font-size: 28px;
-            color: #fff;
+            background: linear-gradient(135deg, #1a2639, #2b334d 60%, #3d4965 100%);
+            border: 2px solid #FFD700;
+            box-shadow: 0 2px 12px 1px rgba(255,215,0,0.3), 0 0 0 2px rgba(255,215,0,0.2);
+            font-size: 26px;
+            color: #FFD700;
             cursor: pointer;
             z-index: 1200;
             display: flex;
@@ -1005,24 +1005,26 @@
             outline: none;
         }
         #invincibilityButton.powerup-btn:active {
-            transform: scale(0.9);
+            transform: scale(0.85);
+            box-shadow: 0 1px 6px 1px rgba(255,215,0,0.4), 0 0 0 1px rgba(255,215,0,0.3);
         }
         #invincibilityButton.powerup-btn[disabled] {
-            background: #666;
-            color: #999;
-            opacity: 0.4;
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a 60%, #333 100%);
+            border: 2px solid #666;
+            color: #666;
+            opacity: 0.5;
             cursor: not-allowed;
             box-shadow: none;
         }
         #invincibilityButton.powerup-btn::after {
             content: attr(data-charges);
             position: absolute;
-            bottom: -18px;
+            bottom: -16px;
             right: 50%;
             transform: translateX(50%);
-            font-size: 12px;
+            font-size: 11px;
             color: #FFD700;
-            text-shadow: 1px 1px 2px #000, 0 0 4px #fff;
+            text-shadow: 1px 1px 2px #000, 0 0 6px #FFD700;
             font-family: 'Press Start 2P', cursive;
             pointer-events: none;
         }
@@ -1030,16 +1032,16 @@
         /* Dash Button - Mobile dash control */
         #dashButton.powerup-btn {
             position: absolute;
-            bottom: 18vh;
-            left: 20vw; /* More spacing for mobile devices */
-            width: 64px;
-            height: 64px;
+            bottom: 24vh;
+            left: 24vw; /* Much more spacing for mobile devices */
+            width: 58px;
+            height: 58px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #FF6B35, #FF9800 60%, #fff 100%);
-            border: 3px solid #fff;
-            box-shadow: 0 2px 8px 1px rgba(255,107,53,0.4), 0 0 0 3px #FF6B3544;
-            font-size: 28px;
-            color: #fff;
+            background: linear-gradient(135deg, #1a2639, #2b334d 60%, #3d4965 100%);
+            border: 2px solid #FF6B35;
+            box-shadow: 0 2px 12px 1px rgba(255,107,53,0.3), 0 0 0 2px rgba(255,107,53,0.2);
+            font-size: 26px;
+            color: #FF6B35;
             cursor: pointer;
             z-index: 1200;
             display: flex;
@@ -1056,24 +1058,26 @@
             outline: none;
         }
         #dashButton.powerup-btn:active {
-            transform: scale(0.9);
+            transform: scale(0.85);
+            box-shadow: 0 1px 6px 1px rgba(255,107,53,0.4), 0 0 0 1px rgba(255,107,53,0.3);
         }
         #dashButton.powerup-btn[disabled] {
-            background: #666;
-            color: #999;
-            opacity: 0.4;
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a 60%, #333 100%);
+            border: 2px solid #666;
+            color: #666;
+            opacity: 0.5;
             cursor: not-allowed;
             box-shadow: none;
         }
         #dashButton.powerup-btn::after {
             content: attr(data-charges);
             position: absolute;
-            bottom: -18px;
+            bottom: -16px;
             right: 50%;
             transform: translateX(50%);
-            font-size: 12px;
+            font-size: 11px;
             color: #FF6B35;
-            text-shadow: 1px 1px 2px #000, 0 0 4px #fff;
+            text-shadow: 1px 1px 2px #000, 0 0 6px #FF6B35;
             font-family: 'Press Start 2P', cursive;
             pointer-events: none;
         }
