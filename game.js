@@ -31,6 +31,7 @@ let isJumping = false;
 let canDoubleJump = false;
 let canTripleJump = false;
 let velocityY = 0;
+let isFalling = false; // Track if player is falling naturally (not actively jumping)
 let dinoFrame = 1;
 let lastObstacleSpawn = 0;
 let lastTapTime = 0;
@@ -39,12 +40,13 @@ let birds = []; // Flying obstacles
 let platforms = []; // Floating Mario-style platforms
 let lastPlatformSpawn = 0;
 let gameSpeedMultiplier = 1;
+let platformJumpRefresh = false; // Track if jumps were refreshed by platform
 
 // Death screen state
 let isShowingDeathScreen = false;
 let deathScreenStartTime = 0;
 let deathCause = null; // Store what killed the player
-const DEATH_SCREEN_DURATION = 4000; // 4 seconds
+const DEATH_SCREEN_DURATION = 5000; // 5 seconds
 
 // Critical fix: Add high score screen blocking flag
 let highScoreScreenActive = false;
@@ -237,6 +239,19 @@ const LASER_SPEED = 4; // Faster than fireballs
 const LASER_WIDTH = 30; // Much longer than fireballs
 const LASER_HEIGHT = 6;
 
+// Ending sequence constants
+const ENDING_SCORE = 500;
+const ENDING_WAIT_TIME = 5000; // 5 seconds of running with no obstacles
+const SPEECH_BUBBLE_DURATION = 8000; // 8 seconds per speech bubble
+const FADE_DURATION = 2000; // 2 seconds for fade out
+const FINAL_MESSAGE_DURATION = 5000; // 5 seconds for final message
+
+// Ending sequence state
+let endingSequenceStarted = false;
+let endingPhase = 'none'; // 'none', 'clearing_screen', 'waiting', 'oogway_appears', 'speech1', 'speech2', 'speech3', 'speech4', 'moving', 'fade_out', 'final_message'
+let endingStartTime = 0;
+let oogway = null;
+
 // Get canvas and context
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -263,6 +278,9 @@ const ground = {
 let zenAudio = null;
 let musicStarted = false;
 let musicEnabled = true;
+
+// Jump Counter Display System
+let jumpCounterEnabled = true; // Default to enabled
 
 // 🎵 Boss Music System - Separate from main music
 let bossAudio = null;
@@ -502,6 +520,34 @@ function updateMusicButtons() {
         } else {
             menuMusicIcon.textContent = '🔇';
             menuMusicText.textContent = 'MUSIC OFF';
+        }
+    }
+}
+
+function toggleJumpCounter() {
+    jumpCounterEnabled = !jumpCounterEnabled;
+    
+    // Store preference in localStorage
+    localStorage.setItem('jumpCounterEnabled', jumpCounterEnabled.toString());
+    
+    console.log('🔢 Jump Counter ' + (jumpCounterEnabled ? 'enabled' : 'disabled'));
+    
+    // Update button text and icon
+    updateJumpCounterButtons();
+}
+
+function updateJumpCounterButtons() {
+    // Update main menu button
+    const menuCounterIcon = document.getElementById('counterIcon');
+    const menuCounterText = document.getElementById('counterText');
+    
+    if (menuCounterIcon && menuCounterText) {
+        if (jumpCounterEnabled) {
+            menuCounterIcon.textContent = '🔢';
+            menuCounterText.textContent = 'COUNTER ON';
+        } else {
+            menuCounterIcon.textContent = '❌';
+            menuCounterText.textContent = 'COUNTER OFF';
         }
     }
 }
@@ -1183,6 +1229,88 @@ function createRocketSprite() {
     return canvas;
 }
 
+function createOogwaySprite() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 80; // Bigger than dino (40px)
+    canvas.height = 80;
+
+    // Cute turtle sprite with glow
+    
+    // Magical glow effect
+    ctx.save();
+    ctx.shadowColor = '#FFD700'; // Golden glow
+    ctx.shadowBlur = 15;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // Shell (main body) - bigger and rounder
+    ctx.fillStyle = '#8B4513'; // Brown shell
+    ctx.beginPath();
+    ctx.ellipse(40, 40, 30, 22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Simple shell pattern - cute spots
+    ctx.fillStyle = '#654321'; // Darker brown spots
+    ctx.beginPath();
+    ctx.arc(35, 35, 4, 0, Math.PI * 2); // Top left spot
+    ctx.arc(45, 35, 4, 0, Math.PI * 2); // Top right spot
+    ctx.arc(30, 45, 3, 0, Math.PI * 2); // Middle left spot
+    ctx.arc(50, 45, 3, 0, Math.PI * 2); // Middle right spot
+    ctx.arc(40, 48, 4, 0, Math.PI * 2); // Bottom center spot
+    ctx.fill();
+    
+    // Head - cute and round
+    ctx.fillStyle = '#90EE90'; // Light green
+    ctx.beginPath();
+    ctx.ellipse(40, 20, 14, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cute eyes - bigger and friendlier
+    ctx.fillStyle = '#000000'; // Black eyes
+    ctx.beginPath();
+    ctx.arc(34, 18, 3, 0, Math.PI * 2);
+    ctx.arc(46, 18, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Eye whites - sparkly
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(35, 17, 1.5, 0, Math.PI * 2);
+    ctx.arc(47, 17, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cute smile
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(40, 22, 4, 0, Math.PI);
+    ctx.stroke();
+    
+    // Legs - cute and stubby
+    ctx.fillStyle = '#90EE90'; // Same as head
+    // Front legs
+    ctx.beginPath();
+    ctx.ellipse(20, 50, 8, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(60, 50, 8, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Back legs
+    ctx.beginPath();
+    ctx.ellipse(22, 60, 8, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(58, 60, 8, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cute little tail
+    ctx.beginPath();
+    ctx.arc(40, 65, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+    
+    return canvas;
+}
+
 // Load sprites
 let dinoRun1 = createDinoSprite('run1');
 let dinoRun2 = createDinoSprite('run2');
@@ -1212,6 +1340,7 @@ let fireballSprite = createFireballSprite(); // Now blue fireballs
 let greenGoblinSprite = createGreenGoblinSprite(); // Green Goblin boss
 let laserSprite = createLaserSprite(); // Green laser projectiles
 let rocketSprite = createRocketSprite(); // Dash power-up rockets
+let oogwaySprite = createOogwaySprite(); // Ending sequence turtle
 
 // Create star array
 const stars = [];
@@ -1272,15 +1401,21 @@ function initHills() {
 function jump() {
     if (!isGameOver) {
         if (!isJumping) {
+            // First jump from ground or platform
             isJumping = true;
+            isFalling = false; // This is an active jump, not falling
             canDoubleJump = true;
             canTripleJump = false;
             velocityY = JUMP_FORCE;
         } else if (canDoubleJump) {
+            // Second jump (double jump)
+            isFalling = false; // This is an active jump, not falling
             velocityY = JUMP_FORCE * 0.9; // Double jump force
             canDoubleJump = false;
             canTripleJump = true;
         } else if (canTripleJump) {
+            // Third jump (triple jump)
+            isFalling = false; // This is an active jump, not falling
             velocityY = JUMP_FORCE * 0.8; // Triple jump force (slightly weaker)
             canTripleJump = false;
         }
@@ -1295,6 +1430,11 @@ function tripleJump() {
 }
 
 function spawnObstacle() {
+    // Stop spawning obstacles when ending sequence starts
+    if (score >= ENDING_SCORE) {
+        return;
+    }
+    
     const now = Date.now();
     if (now - lastObstacleSpawn > OBSTACLE_SPAWN_INTERVAL) {
         // Calculate speed multiplier with limit after score 40
@@ -1312,15 +1452,15 @@ function spawnObstacle() {
         let baseHeight = 40;
         let sizeMultiplier = 0.7 + Math.random() * 0.6; // For normal cacti
         
-        // XXL Cactus: After score 150, rare (5%)
-        if (score >= 150 && Math.random() < 0.05) {
+        // XXL Cactus: After score 120, more common (18%)
+        if (score >= 120 && Math.random() < 0.18) {
             cactusType = 'xxl';
             baseWidth = 40;
             baseHeight = 80;
             sizeMultiplier = 1.0; // Fixed size for special cacti
         }
-        // XL Cactus: After score 100, uncommon (10%)
-        else if (score >= 100 && Math.random() < 0.10) {
+        // XL Cactus: After score 80, common (28%)
+        else if (score >= 80 && Math.random() < 0.28) {
             cactusType = 'xl';
             baseWidth = 30;
             baseHeight = 60;
@@ -1480,6 +1620,7 @@ function checkBirdCollision(dino, bird) {
 
 function spawnRockets() {
     if (score < 5) return; // Start checking after score 5
+    if (score >= ENDING_SCORE) return; // Stop spawning in ending sequence
     
     const hundredInterval = Math.floor(score / 100);
     
@@ -1555,6 +1696,11 @@ function checkRocketCollision(dino, rocket) {
 }
 
 function spawnPlatform() {
+    // Stop spawning platforms when ending sequence starts
+    if (score >= ENDING_SCORE) {
+        return;
+    }
+    
     const now = Date.now();
     
     // Platforms appear after level 20 for platform jumping gameplay - increased frequency
@@ -1589,8 +1735,17 @@ function spawnPlatform() {
             { width: 140, name: 'xxxl' }     // XXXL platforms - super platforms
         ];
         
-        // Weighted random selection - Less small platforms, ensure medium platforms appear
-        const sizeWeights = [5, 20, 25, 25, 15, 10]; // small: 5%, medium: 20%, large: 25%, xlarge: 25%, xxl: 15%, xxxl: 10%
+        // Adjusted weighted random selection - Make larger platforms much more common after score 20
+        // Small platforms should be rare, larger platforms should be common
+        let sizeWeights;
+        if (score >= 20) {
+            // After score 20: Favor large platforms heavily
+            sizeWeights = [2, 8, 15, 25, 30, 20]; // small: 2%, medium: 8%, large: 15%, xlarge: 25%, xxl: 30%, xxxl: 20%
+        } else {
+            // Before score 20: Original distribution
+            sizeWeights = [5, 20, 25, 25, 15, 10]; // small: 5%, medium: 20%, large: 25%, xlarge: 25%, xxl: 15%, xxxl: 10%
+        }
+        
         const random = Math.random() * 100;
         let selectedSize;
         
@@ -1614,11 +1769,9 @@ function spawnPlatform() {
             y: finalHeight,
             width: selectedSize.width,
             height: 12, // Keep height consistent
-            speed: currentSpeed,
+            speed: currentSpeed * 0.5, // FIXED: Make platforms move at half speed for easier landing
             size: selectedSize.name // Store size for debugging/effects
         });
-        
-        console.log(`🏗️ Spawned ${selectedSize.name} platform (${selectedSize.width}px wide) at height ${Math.round(finalHeight)}`);;
         
         lastPlatformSpawn = now;
     }
@@ -1636,32 +1789,44 @@ function updatePlatforms() {
             continue;
         }
         
-        // Check if dino is landing on platform
-        if (checkPlatformLanding(dino, platforms[i])) {
-            // Snap dino to platform top
-            dino.y = platforms[i].y - dino.height;
-            isJumping = false;
-            velocityY = 0;
-            canDoubleJump = true; // Reset all jumps when landing
-            canTripleJump = false;
+        // SIMPLE: Check if dino is touching platform - reset jumps on any contact
+        if (checkPlatformTouch(dino, platforms[i])) {
+            // Snap dino to platform top only if falling down
+            if (velocityY > 0) {
+                dino.y = platforms[i].y - dino.height;
+                isJumping = false;
+                isFalling = false; // Reset falling state
+                velocityY = 0;
+            }
+            
+            // SUPER SIMPLE: Always give back all jumps when touching platform
+            // This should work whether you touch during jump 1, 2, or 3
+            canDoubleJump = true; // Reset to allow double jump
+            canTripleJump = false; // Reset triple jump availability
             onPlatform = true;
+            platformJumpRefresh = true;
         }
     }
     
     // If dino is not on any platform and not jumping, check if should fall
     if (!onPlatform && !isJumping && dino.y < ground.y - dino.height) {
         isJumping = true; // Start falling
+        isFalling = true; // This is natural falling, not an active jump
         velocityY = 0; // Start falling from rest
+        // CRITICAL FIX: When falling off platform, give player full jump count
+        // as if they're doing their first jump - this allows double/triple jump in air
+        canDoubleJump = true; // Allow double jump
+        canTripleJump = false; // Triple jump becomes available after double jump
     }
 }
 
-function checkPlatformLanding(dino, platform) {
-    // Check if dino is landing on top of the platform
+function checkPlatformTouch(dino, platform) {
+    // SIMPLE: Just check if dino is touching the platform at all
+    // No complex landing detection - just touching = reset jumps
     return dino.x + 10 < platform.x + platform.width &&     // Dino overlaps platform horizontally
            dino.x + dino.width - 10 > platform.x &&          // (with small margin for better feel)
            dino.y + dino.height >= platform.y &&             // Dino is at or below platform top
-           dino.y + dino.height <= platform.y + platform.height + 8 && // Within platform thickness + tolerance
-           velocityY >= 0;                                    // Only when falling or at peak of jump
+           dino.y + dino.height <= platform.y + platform.height + 8; // Within platform thickness + tolerance
 }
 
 // Boss System Functions
@@ -1683,6 +1848,7 @@ function shouldSpawnGreenGoblin() {
 }
 
 function spawnBoss() {
+    if (score >= ENDING_SCORE) return; // Stop spawning in ending sequence
     if (!bossActive && shouldSpawnBoss()) {
         // Calculate boss level based on score (every 50 points)
         bossLevel = Math.floor(score / 50);
@@ -1723,6 +1889,7 @@ function spawnBoss() {
 }
 
 function spawnGreenGoblin() {
+    if (score >= ENDING_SCORE) return; // Stop spawning in ending sequence
     if (!greenGoblinActive && shouldSpawnGreenGoblin()) {
         // Calculate Green Goblin level based on score (every 75 points)
         greenGoblinLevel = Math.floor(score / 75);
@@ -1764,7 +1931,6 @@ function updateBoss(currentTime) {
     if (currentTime - bossSpawnTime > boss.duration) {
         bossActive = false;
         boss = null;
-        console.log('🧌 Boss disappeared!');
         
         // 🎵 Stop boss music when boss is defeated
         stopBossMusic();
@@ -1779,7 +1945,6 @@ function updateBoss(currentTime) {
         boss.velocityY = BOSS_JUMP_FORCE;
         // Schedule next jump
         bossJumpTime = currentTime + Math.random() * 4000 + 3000; // 3-7 seconds
-        console.log('🧌 Boss jumped!');
     }
     
     // Update boss physics (jumping)
@@ -1802,7 +1967,6 @@ function updateBoss(currentTime) {
         const levelSpeedup = (boss.level - 1) * 300; // 0.3s faster per level
         const shootInterval = Math.max(baseInterval - levelSpeedup, 1000); // Minimum 1 second
         bossShootTime = currentTime + Math.random() * shootInterval + 500;
-        console.log('🔥 Boss shooting scheduled for:', (bossShootTime - currentTime)/1000, 'seconds');
     }
 }
 
@@ -1833,8 +1997,6 @@ function shootFireball() {
         velocityY: velocityY,
         rotation: 0
     });
-    
-    console.log('🔥 Boss shot fireball!');
 }
 
 function updateGreenGoblin(currentTime) {
@@ -1844,7 +2006,6 @@ function updateGreenGoblin(currentTime) {
     if (currentTime - greenGoblinSpawnTime > greenGoblin.duration) {
         greenGoblinActive = false;
         greenGoblin = null;
-        console.log('👹 Green Goblin disappeared!');
         
         // 🎵 Stop Green Goblin music when Green Goblin is defeated
         stopGreenGoblinMusic();
@@ -1874,7 +2035,6 @@ function updateGreenGoblin(currentTime) {
         const levelSpeedup = (greenGoblin.level - 1) * 200; // 0.2s faster per level
         const shootInterval = Math.max(baseInterval - levelSpeedup, 1500); // Minimum 1.5 seconds (was 1s)
         greenGoblinShootTime = currentTime + Math.random() * shootInterval + 750; // +750ms (was +500ms)
-        console.log('⚡ Green Goblin laser scheduled for:', (greenGoblinShootTime - currentTime)/1000, 'seconds');
     }
 }
 
@@ -1905,8 +2065,6 @@ function shootLaser() {
         velocityY: velocityY,
         rotation: Math.atan2(dy, dx) // Angle for proper laser orientation
     });
-    
-    console.log('⚡ Green Goblin shot laser!');
 }
 
 function updateLasers() {
@@ -1926,7 +2084,6 @@ function updateLasers() {
         
         // Check collision with player using precise laser collision
         if (checkLaserCollision(dino, laser) && !invincible && !isDashing) {
-            console.log('⚡💥 Player hit by laser!');
             gameOver('green_goblin_laser');
             return;
         }
@@ -1968,8 +2125,6 @@ function showGreenGoblinDefeated() {
     setTimeout(() => {
         greenGoblinDefeatedText.classList.remove('visible');
     }, 2000);
-    
-    console.log('✅ Green Goblin defeated message shown!');
 }
 
 function updateFireballs() {
@@ -1990,7 +2145,6 @@ function updateFireballs() {
         
         // Check collision with player using precise fireball collision
         if (checkFireballCollision(dino, fireball) && !invincible && !isDashing) {
-            console.log('💥 Player hit by fireball!');
             gameOver('boss_fireball');
             return;
         }
@@ -2007,8 +2161,6 @@ function showBossDefeated() {
     setTimeout(() => {
         bossDefeatedText.classList.remove('visible');
     }, 2000);
-    
-    console.log('✅ Boss defeated message shown!');
 }
 
 function gameOver(cause = 'obstacle') {
@@ -2134,6 +2286,33 @@ function initStartScreen() {
         console.error('❌ viewHighscoresBtn not found!');
     }
     
+    // Guide button event listeners
+    const guideBtn = document.getElementById('guideBtn');
+    if (guideBtn) {
+        console.log('✅ Adding event listeners to guideBtn');
+        
+        guideBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('📖 Guide button clicked!');
+            showGuideFromMenu();
+        });
+        
+        guideBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('📖 Guide button touched!');
+            showGuideFromMenu();
+        });
+        
+        guideBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    } else {
+        console.error('❌ guideBtn not found!');
+    }
+    
     // Start the preview animation
     if (previewCtx) {
         initPreviewElements();
@@ -2141,6 +2320,47 @@ function initStartScreen() {
     }
     
     console.log('🎮 Start screen initialized');
+}
+
+// Guide screen functions
+function showGuideFromMenu() {
+    console.log('📖 Showing guide from menu...');
+    
+    // Hide start screen
+    const startScreen = document.getElementById('startScreen');
+    if (startScreen) {
+        startScreen.style.display = 'none';
+    }
+    
+    // Show guide screen
+    const guideScreen = document.getElementById('guideScreen');
+    if (guideScreen) {
+        guideScreen.style.display = 'block';
+        setTimeout(() => {
+            guideScreen.classList.add('show');
+        }, 50);
+    }
+    
+    // Add back to menu button event
+    const backToMenuBtn = document.getElementById('backToMenuBtn');
+    
+    if (backToMenuBtn) {
+        backToMenuBtn.onclick = hideGuideScreen;
+    }
+}
+
+function hideGuideScreen() {
+    console.log('📖 Hiding guide screen...');
+    
+    const guideScreen = document.getElementById('guideScreen');
+    if (guideScreen) {
+        guideScreen.classList.remove('show');
+        setTimeout(() => {
+            guideScreen.style.display = 'none';
+            // Show start screen again
+            showStartScreen();
+        }, 300);
+    }
 }
 
 function initPreviewElements() {
@@ -2502,6 +2722,7 @@ function startGame() {
     gameStarted = true; // Set this to true to enable the game loop
     dino.y = ground.y - dino.height;
     isJumping = false;
+    isFalling = false;
     canDoubleJump = false;
     canTripleJump = false;
     velocityY = 0;
@@ -2546,6 +2767,18 @@ function startGame() {
     
     // Reset secret code buffer
     secretCodeBuffer = '';
+    
+    // Reset platform jump refresh flag
+    platformJumpRefresh = false;
+    
+    // Reset jump counter state (respects user's enabled/disabled preference)
+    // jumpCounterEnabled keeps its value from user preference
+    
+    // Reset ending sequence
+    endingSequenceStarted = false;
+    endingPhase = 'none';
+    endingStartTime = 0;
+    oogway = null;
     
     // 🎵 Stop any boss/Green Goblin music when starting new game
     stopBossMusic();
@@ -2639,8 +2872,10 @@ function update(currentTime) {
         if (dino.y >= ground.y - dino.height) {
             dino.y = ground.y - dino.height;
             isJumping = false;
-            canDoubleJump = true; // Reset all jumps when landing on ground
-            canTripleJump = false;
+            isFalling = false; // Reset falling state
+            // FIXED: Properly reset ALL jump abilities when landing on ground (same as platforms)
+            canDoubleJump = true; // Reset to allow double jump
+            canTripleJump = false; // Reset triple jump availability
         }
     }
     
@@ -2691,18 +2926,204 @@ function update(currentTime) {
     updateGreenGoblin(currentTime);
     updateLasers();
 
+    // Handle ending sequence
+    updateEndingSequence(currentTime);
+    
+    // Update jump counter UI
+    updateJumpCounter();
+
     // Update obstacles with individual speeds
     for (let i = obstacles.length - 1; i >= 0; i--) {
         obstacles[i].x -= obstacles[i].speed;
         if (obstacles[i].x + obstacles[i].width < 0) {
             obstacles.splice(i, 1);
-            score++;
+            // Cap score at ending score
+            if (score < ENDING_SCORE) {
+                score++;
+            }
         } else if (checkCollision(dino, obstacles[i]) && !invincible && !isDashing) {
             const cactusType = obstacles[i].type || 'cactus';
             gameOver(cactusType);
             return;
         }
     }
+}
+
+function updateEndingSequence(currentTime) {
+    // Start ending sequence when score reaches 500
+    if (score >= ENDING_SCORE && !endingSequenceStarted) {
+        endingSequenceStarted = true;
+        endingPhase = 'clearing_screen';
+        endingStartTime = currentTime;
+        console.log('🎬 Ending sequence started! Score reached 500 - waiting for screen to clear');
+    }
+    
+    if (!endingSequenceStarted) return;
+    
+    const elapsedTime = currentTime - endingStartTime;
+    
+    switch (endingPhase) {
+        case 'clearing_screen':
+            // Wait for all enemies/obstacles/bosses to leave screen
+            if (isScreenClearOfEnemies()) {
+                endingPhase = 'waiting';
+                endingStartTime = currentTime;
+                console.log('🧹 Screen cleared! Starting 5-second peace period');
+            }
+            break;
+            
+        case 'waiting':
+            // Wait 5 seconds with no obstacles
+            if (elapsedTime >= ENDING_WAIT_TIME) {
+                endingPhase = 'oogway_appears';
+                endingStartTime = currentTime;
+                spawnOogway();
+                console.log('🐢 Oogway appears!');
+            }
+            break;
+            
+        case 'oogway_appears':
+            // Oogway slides in from right for 2 seconds
+            if (elapsedTime >= 2000) {
+                endingPhase = 'speech1';
+                endingStartTime = currentTime;
+                console.log('💬 Oogway starts speaking');
+            }
+            break;
+            
+        case 'speech1':
+            // First speech bubble
+            if (elapsedTime >= SPEECH_BUBBLE_DURATION) {
+                endingPhase = 'speech2';
+                endingStartTime = currentTime;
+            }
+            break;
+            
+        case 'speech2':
+            // Second speech bubble
+            if (elapsedTime >= SPEECH_BUBBLE_DURATION) {
+                endingPhase = 'speech3';
+                endingStartTime = currentTime;
+            }
+            break;
+            
+        case 'speech3':
+            // Third speech bubble
+            if (elapsedTime >= SPEECH_BUBBLE_DURATION) {
+                endingPhase = 'speech4';
+                endingStartTime = currentTime;
+            }
+            break;
+            
+        case 'speech4':
+            // Fourth speech bubble
+            if (elapsedTime >= SPEECH_BUBBLE_DURATION) {
+                endingPhase = 'moving';
+                endingStartTime = currentTime;
+                console.log('🚀 Dino and Oogway start moving together');
+            }
+            break;
+            
+        case 'moving':
+            // Both characters move off-screen
+            if (oogway) {
+                oogway.x += 2; // Move right
+                dino.x += 2; // Move dino right too
+            }
+            
+            if (elapsedTime >= 3000) { // 3 seconds of moving
+                endingPhase = 'fade_out';
+                endingStartTime = currentTime;
+                console.log('🌅 Starting fade out');
+            }
+            break;
+            
+        case 'fade_out':
+            // Fade out effect
+            if (elapsedTime >= FADE_DURATION) {
+                endingPhase = 'final_message';
+                endingStartTime = currentTime;
+                console.log('💫 Showing final message');
+            }
+            break;
+            
+        case 'final_message':
+            // Show final message
+            if (elapsedTime >= FINAL_MESSAGE_DURATION) {
+                // End the game normally so player can enter their name
+                console.log('🎉 Game completed!');
+                gameOver('ending_complete');
+            }
+            break;
+    }
+}
+
+function getCurrentJumpCount() {
+    // Calculate how many jumps the player currently has available
+    if (!isJumping) {
+        // On ground or platform - full 3 jumps available
+        return 3;
+    } else if (isFalling) {
+        // Falling naturally off platform - full 3 jumps available
+        return 3;
+    } else if (canTripleJump) {
+        // Has used first and second jump - 1 jump left
+        return 1;
+    } else if (canDoubleJump) {
+        // Has used first jump only - 2 jumps left  
+        return 2;
+    } else {
+        // Has used all jumps - 0 jumps left
+        return 0;
+    }
+}
+
+function updateJumpCounter() {
+    const jumpCounterElement = document.getElementById('jumpCounter');
+    if (!jumpCounterElement) return;
+    
+    // Hide counter if disabled or game not started/over
+    if (!jumpCounterEnabled || !gameStarted || isGameOver) {
+        jumpCounterElement.style.display = 'none';
+        return;
+    }
+    
+    jumpCounterElement.style.display = 'block';
+    const jumps = getCurrentJumpCount();
+            jumpCounterElement.textContent = `${jumps}`;
+    
+    // Color based on remaining jumps - using duller, darker colors
+    if (jumps === 3) {
+        jumpCounterElement.style.color = '#1a5d1a'; // Muted dark green - full jumps
+    } else if (jumps === 2) {
+        jumpCounterElement.style.color = '#8b7d00'; // Muted dark gold - good
+    } else if (jumps === 1) {
+        jumpCounterElement.style.color = '#a0540a'; // Muted dark orange - warning
+    } else {
+        jumpCounterElement.style.color = '#7a3a3a'; // Muted dark red - no jumps
+    }
+}
+
+function isScreenClearOfEnemies() {
+    // Check if screen is completely clear of all enemies, obstacles, and bosses
+    return obstacles.length === 0 && 
+           birds.length === 0 && 
+           platforms.length === 0 && 
+           fireballs.length === 0 && 
+           lasers.length === 0 && 
+           rockets.length === 0 && 
+           !bossActive && 
+           !greenGoblinActive;
+}
+
+function spawnOogway() {
+    oogway = {
+        x: canvas.width + 100, // Start off-screen right
+        y: ground.y - 80, // On ground (sprite height is 80)
+        width: 80,
+        height: 80,
+        targetX: canvas.width - 200 // Target position
+    };
 }
 
 function checkCollision(dino, obstacle) {
@@ -3208,6 +3629,9 @@ function draw() {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     
+    // Draw ending sequence elements
+    drawEndingSequence();
+    
     // Draw death screen overlay if showing
     drawDeathScreen();
 }
@@ -3216,7 +3640,7 @@ function drawDeathScreen() {
     if (!isShowingDeathScreen) return;
     
     // Draw semi-transparent overlay
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Get death cause message
@@ -3246,35 +3670,196 @@ function drawDeathScreen() {
         case 'green_goblin_laser':
             causeMessage = 'Hit by Green Goblin Laser!';
             break;
+        case 'ending_complete':
+            deathMessage = 'MISSION COMPLETE!';
+            causeMessage = 'You helped the alien escape!';
+            break;
         default:
             causeMessage = 'Collision Detected!';
     }
     
-    // Main Game Over text
-    ctx.fillStyle = '#FF4444';
-    ctx.font = 'bold 48px Arial';
+    // Set text properties for retro game font
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Main "GAME OVER" text with retro styling
+    ctx.save();
+    ctx.fillStyle = '#FF4444';
+    ctx.font = 'bold 36px "Press Start 2P", monospace';
+    // Add text shadow for depth
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
     ctx.fillText(deathMessage, canvas.width / 2, canvas.height / 2 - 40);
+    ctx.restore();
     
-    // Death cause text
+    // Death cause text with gold color
+    ctx.save();
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 16px "Press Start 2P", monospace';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 2;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    ctx.fillText(causeMessage, canvas.width / 2, canvas.height / 2);
+    ctx.restore();
+    
+    // Score text with white color
+    ctx.save();
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText(causeMessage, canvas.width / 2, canvas.height / 2 + 10);
-    
-    // Score text
-    ctx.fillStyle = '#FFFF77';
-    ctx.font = 'bold 20px Arial';
-    ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+    ctx.font = 'bold 14px "Press Start 2P", monospace';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 2;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 40);
+    ctx.restore();
     
     // Calculate remaining time
     const elapsed = performance.now() - deathScreenStartTime;
     const remaining = Math.max(0, Math.ceil((DEATH_SCREEN_DURATION - elapsed) / 1000));
     
     if (remaining > 0) {
-        ctx.fillStyle = '#CCCCCC';
-        ctx.font = '16px Arial';
-        ctx.fillText(`Transitioning to high scores in ${remaining}s...`, canvas.width / 2, canvas.height / 2 + 85);
+        ctx.save();
+        ctx.fillStyle = '#AAAAAA';
+        ctx.font = '12px "Press Start 2P", monospace';
+        ctx.shadowColor = '#000000';
+        ctx.shadowBlur = 1;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.fillText(`Continuing to high scores in ${remaining}s...`, canvas.width / 2, canvas.height / 2 + 80);
+        ctx.restore();
     }
+    
+    // Reset text alignment
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+}
+
+function drawEndingSequence() {
+    if (!endingSequenceStarted) return;
+    
+    // Draw Oogway if he's spawned
+    if (oogway && (endingPhase === 'oogway_appears' || endingPhase === 'speech1' || endingPhase === 'speech2' || endingPhase === 'speech3' || endingPhase === 'speech4' || endingPhase === 'moving')) {
+        // Move Oogway to target position during appearance
+        if (endingPhase === 'oogway_appears') {
+            oogway.x = Math.max(oogway.targetX, oogway.x - 3);
+        }
+        
+        // Draw Oogway with a slight glow effect
+        ctx.save();
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 10;
+        ctx.drawImage(oogwaySprite, oogway.x, oogway.y, oogway.width, oogway.height);
+        ctx.restore();
+    }
+    
+    // Draw speech bubbles
+    if (endingPhase === 'speech1' || endingPhase === 'speech2' || endingPhase === 'speech3' || endingPhase === 'speech4') {
+        drawSpeechBubble();
+    }
+    
+    // Draw fade out effect
+    if (endingPhase === 'fade_out') {
+        const currentTime = performance.now();
+        const elapsedTime = currentTime - endingStartTime;
+        const fadeProgress = Math.min(elapsedTime / FADE_DURATION, 1);
+        
+        ctx.save();
+        ctx.fillStyle = `rgba(0, 0, 0, ${fadeProgress})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+    
+    // Draw final message
+    if (endingPhase === 'final_message') {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Final message text
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 24px "Press Start 2P", monospace';
+        ctx.shadowColor = '#000000';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        ctx.fillText('CONGRATULATIONS!', canvas.width / 2, canvas.height / 2 - 60);
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 16px "Press Start 2P", monospace';
+        ctx.fillText('You helped the alien escape.', canvas.width / 2, canvas.height / 2 - 10);
+        ctx.fillText('Thank you for this adventure!', canvas.width / 2, canvas.height / 2 + 20);
+        
+        ctx.fillStyle = '#90EE90';
+        ctx.font = 'bold 12px "Press Start 2P", monospace';
+        ctx.fillText('The alien is very grateful.', canvas.width / 2, canvas.height / 2 + 60);
+        
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.restore();
+    }
+}
+
+function drawSpeechBubble() {
+    if (!oogway) return;
+    
+    // Position bubble in center of screen for better visibility - BIGGER SIZE
+    const bubbleWidth = 450;
+    const bubbleHeight = 120;
+    const bubbleX = (canvas.width - bubbleWidth) / 2;
+    const bubbleY = 80; // Fixed position from top
+    
+    // Draw bubble background
+    ctx.save();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    
+    // Main bubble
+    ctx.beginPath();
+    ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 15);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Speech bubble tail pointing to Oogway
+    const tailX = Math.min(Math.max(oogway.x + 40, bubbleX + 40), bubbleX + bubbleWidth - 40);
+    ctx.beginPath();
+    ctx.moveTo(tailX - 10, bubbleY + bubbleHeight);
+    ctx.lineTo(tailX, bubbleY + bubbleHeight + 20);
+    ctx.lineTo(tailX + 10, bubbleY + bubbleHeight);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    // Speech text - smaller font and better spacing
+    ctx.fillStyle = '#000000';
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    const centerX = bubbleX + bubbleWidth / 2;
+    const centerY = bubbleY + bubbleHeight / 2;
+    
+    if (endingPhase === 'speech1') {
+        ctx.fillText("You have done well, my son...", centerX, centerY - 25);
+        ctx.fillText("You faced the Suars... and the Green", centerX, centerY - 5);
+        ctx.fillText("Goblins... with great courage.", centerX, centerY + 15);
+    } else if (endingPhase === 'speech2') {
+        ctx.fillText("But I sense a storm beyond the stars...", centerX, centerY - 15);
+        ctx.fillText("Far greater enemies await us.", centerX, centerY + 5);
+    } else if (endingPhase === 'speech3') {
+        ctx.fillText("Yes... even Thanos is coming.", centerX, centerY);
+    } else if (endingPhase === 'speech4') {
+        ctx.fillText("For now, we must leave this planet.", centerX, centerY - 10);
+        ctx.fillText("Come... our journey is not yet over.", centerX, centerY + 10);
+    }
+    
+    ctx.restore();
 }
 
 let gameLoopId = null;
@@ -3401,13 +3986,7 @@ function handleTouch(event) {
             target.closest('#leaderboardModal') ||
             target.closest('#highScoreScreen')
         )) {
-        console.log('🚫 Touch on UI element - ignoring for game', targetId || targetClass);
         return; // Let the specific button handlers deal with it
-    }
-    
-    // Special case: Allow game area touches even when start screen is visible but game is running
-    if (targetId === 'gameContainer' || targetId === 'gameCanvas') {
-        console.log('✅ Touch on game area - allowing for gameplay', targetId);
     }
     
     event.preventDefault();  // Prevent default touch behavior
@@ -3427,14 +4006,7 @@ function handleTouch(event) {
     const nameInputModal = document.getElementById('nameInputModal');
     const startScreen = document.getElementById('startScreen');
     
-    console.log('🔍 Modal states:', {
-        highScoreForm: highScoreForm ? !highScoreForm.classList.contains('hidden') : 'not found',
-        leaderboardModal: leaderboardModal ? leaderboardModal.style.display : 'not found',
-        nameInputModal: nameInputModal ? nameInputModal.style.display : 'not found',
-        startScreen: startScreen ? startScreen.style.display : 'not found',
-        gameStarted: gameStarted,
-        isGameOver: isGameOver
-    });
+
     
     if (highScoreForm && !highScoreForm.classList.contains('hidden') && highScoreForm.style.display !== 'none') {
         console.log('🚫 Blocked by highscore form check - form is actually visible');
@@ -3456,11 +4028,8 @@ function handleTouch(event) {
         return; // Don't handle touch if start screen is visible and game hasn't started
     }
     
-    console.log('✅ All blocking checks passed - proceeding to game logic');
-    
     // If game hasn't started, start it from menu
     if (!gameStarted) {
-        console.log('🎮 Touch detected - starting game from menu');
         startGameFromMenu();
         return;
     }
@@ -3470,27 +4039,16 @@ function handleTouch(event) {
     }
 
     // Handle jumping in game
-    console.log('🦘 Touch detected - jumping!', {
-        gameStarted: gameStarted,
-        isGameOver: isGameOver,
-        lastTapTime: lastTapTime,
-        currentTime: Date.now()
-    });
-    
     const now = Date.now();
     
     if (!lastTapTime) {
-        console.log('🔥 First tap - setting lastTapTime and jumping');
         lastTapTime = now;
         jump();
     } else {
         const tapLength = now - lastTapTime;
-        console.log(`⏱️ Tap timing: ${tapLength}ms since last tap`);
         if (tapLength < 300) {  // 300ms window for multi-tap
-            console.log('🚀 Multi-tap detected - attempting additional jump');
             jump(); // Just use the main jump function, it handles all jump logic
         } else {
-            console.log('👆 Regular tap - single jumping');
             jump();
         }
         lastTapTime = now;
@@ -3526,11 +4084,25 @@ initMusic();
 
 // Initialize and show start screen
 document.addEventListener('DOMContentLoaded', () => {
+    // Load preferences from localStorage
+    const savedMusicEnabled = localStorage.getItem('musicEnabled');
+    if (savedMusicEnabled !== null) {
+        musicEnabled = savedMusicEnabled === 'true';
+    }
+    
+    const savedJumpCounterEnabled = localStorage.getItem('jumpCounterEnabled');
+    if (savedJumpCounterEnabled !== null) {
+        jumpCounterEnabled = savedJumpCounterEnabled === 'true';
+    }
+    
     initStartScreen();
     showStartScreen();
     
     // Initialize music button states
     updateMusicButtons();
+    
+    // Initialize jump counter button states 
+    updateJumpCounterButtons();
     
     // Add event listener for main menu music toggle button only
     const menuMusicBtn = document.getElementById('musicToggleBtn');
@@ -3563,6 +4135,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         menuMusicBtn.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        });
+    }
+    
+    // Add event listener for jump counter toggle button
+    const menuCounterBtn = document.getElementById('jumpCounterToggleBtn');
+    
+    if (menuCounterBtn) {
+        console.log('🔧 Setting up jump counter button events');
+        
+        menuCounterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔢 Jump counter button clicked');
+            toggleJumpCounter();
+        });
+        
+        // Isolated touch handling - prevent any interference with global touch system
+        menuCounterBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation(); // Stop ALL propagation
+            console.log('🔢 Jump counter button touched');
+            toggleJumpCounter();
+        });
+        
+        // Prevent any touch events from bubbling up from counter button
+        menuCounterBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        });
+        
+        menuCounterBtn.addEventListener('touchmove', (e) => {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
