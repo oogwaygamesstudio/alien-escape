@@ -355,7 +355,7 @@ function playMusic() {
         musicStarted = true;
         
         zenAudio.play().then(() => {
-            console.log('🎵 Zen Garden music playing');
+            // Zen Garden music started
         }).catch((error) => {
             console.log('🔇 Zen Garden music playback failed:', error);
             musicStarted = false;
@@ -382,7 +382,7 @@ function playBossMusic() {
     bossAudioPlaying = true;
     
     bossAudio.play().then(() => {
-        console.log('🎵 Boss music playing!');
+        // Boss music started
     }).catch((error) => {
         console.log('🔇 Boss music playback failed:', error);
         bossAudioPlaying = false;
@@ -1264,35 +1264,20 @@ function initHills() {
 
 // Game functions
 function jump() {
-    console.log('🦘 Jump function called', {
-        isGameOver: isGameOver,
-        isJumping: isJumping,
-        canDoubleJump: canDoubleJump,
-        canTripleJump: canTripleJump,
-        gameStarted: gameStarted
-    });
-    
     if (!isGameOver) {
         if (!isJumping) {
-            console.log('✅ Normal jump executed!');
             isJumping = true;
             canDoubleJump = true;
             canTripleJump = false;
             velocityY = JUMP_FORCE;
         } else if (canDoubleJump) {
-            console.log('✅ Double jump executed!');
             velocityY = JUMP_FORCE * 0.9; // Double jump force
             canDoubleJump = false;
             canTripleJump = true;
         } else if (canTripleJump) {
-            console.log('🚀 Triple jump executed!');
             velocityY = JUMP_FORCE * 0.8; // Triple jump force (slightly weaker)
             canTripleJump = false;
-        } else {
-            console.log('❌ Jump blocked - no more jumps available');
         }
-    } else {
-        console.log('❌ Jump blocked - game over');
     }
 }
 
@@ -1356,10 +1341,7 @@ function spawnObstacle() {
             type: cactusType // Store cactus type for rendering
         });
         
-        // Log special cactus spawns
-        if (cactusType !== 'normal') {
-            console.log(`🌵 ${cactusType.toUpperCase()} cactus spawned! Size: ${Math.round(baseWidth * sizeMultiplier)}x${Math.round(baseHeight * sizeMultiplier)}px`);
-        }
+        // Special cactus spawned silently
         
         // Spawn birds after score 20 (reduced frequency for fairness)
         if (score > 20 && Math.random() < 0.10) {
@@ -1498,7 +1480,7 @@ function spawnRockets() {
     if (hundredInterval !== currentHundredInterval) {
         currentHundredInterval = hundredInterval;
         rocketSpawnScores = generateRocketSpawnScores(hundredInterval);
-        console.log(`🚀 New 100-point interval: ${hundredInterval * 100}-${(hundredInterval + 1) * 100}. Rockets will spawn at scores:`, rocketSpawnScores);
+        // New rocket interval calculated
     }
     
     // Check if current score matches any pending rocket spawn scores
@@ -1520,7 +1502,7 @@ function spawnRockets() {
                 glowPhase: 0 // For animated glow effect
             });
             
-            console.log(`🚀 Rocket spawned at score ${score}! Position: (${Math.round(rocketX)}, ${Math.round(rocketY)})`);
+            // Rocket spawned
             
             // Remove this spawn score from the list
             rocketSpawnScores.splice(i, 1);
@@ -1548,7 +1530,6 @@ function updateRockets() {
         if (!rocket.collected && checkRocketCollision(dino, rocket)) {
             rocket.collected = true;
             dashCharges++;
-            console.log(`🚀 Rocket collected! Dash charges: ${dashCharges}`);
             
             // Remove collected rocket
             rockets.splice(i, 1);
@@ -1730,7 +1711,7 @@ function spawnBoss() {
             playBossMusic();
         }
         
-        console.log(`🧌 Boss Level ${bossLevel} spawned! Duration: ${bossDuration/1000}s`);
+        // Boss spawned
     }
 }
 
@@ -1765,7 +1746,7 @@ function spawnGreenGoblin() {
         // 🎵 Play Green Goblin music (takes priority over regular boss music)
         playGreenGoblinMusic();
         
-        console.log(`🧌👹 Green Goblin Level ${greenGoblinLevel} spawned! Duration: ${goblinDuration/1000}s`);
+        // Green Goblin spawned
     }
 }
 
@@ -3307,14 +3288,7 @@ function handleTouch(event) {
     const targetId = target ? target.id : '';
     const targetClass = target ? target.className : '';
     
-    console.log('👆 Touch event detected', {
-        targetId: targetId,
-        targetClass: targetClass,
-        tagName: target?.tagName,
-        gameStarted: gameStarted,
-        isGameOver: isGameOver,
-        highScoreScreenActive: highScoreScreenActive
-    });
+    // Touch event detected
     
     // If touch is on any button, modal, or interactive element, don't handle it here
     // BUT allow game area touches (gameContainer, gameCanvas) even if they're inside other elements
@@ -3347,7 +3321,7 @@ function handleTouch(event) {
     
     event.preventDefault();  // Prevent default touch behavior
     
-    console.log('🔍 Checking blocking conditions...');
+    // Checking blocking conditions
     
     // CRITICAL: Check if highscore screen is visible (prevent touch-anywhere-restart)
     const highScoreScreen = document.getElementById('highScoreScreen');
