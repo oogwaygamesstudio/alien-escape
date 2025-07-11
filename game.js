@@ -40,6 +40,12 @@ let platforms = []; // Floating Mario-style platforms
 let lastPlatformSpawn = 0;
 let gameSpeedMultiplier = 1;
 
+// Death screen state
+let isShowingDeathScreen = false;
+let deathScreenStartTime = 0;
+let deathCause = null; // Store what killed the player
+const DEATH_SCREEN_DURATION = 4000; // 4 seconds
+
 // Critical fix: Add high score screen blocking flag
 let highScoreScreenActive = false;
 
@@ -1439,7 +1445,8 @@ function updateBirds() {
         if (birds[i].x + birds[i].width < 0) { // Remove when off left side
             birds.splice(i, 1);
         } else if (checkBirdCollision(dino, birds[i]) && !invincible && !isDashing) {
-            gameOver();
+            const birdType = birds[i].type === 'pterodactyl' ? 'pterodactyl' : 'bird';
+            gameOver(birdType);
             return;
         }
     }
@@ -1920,7 +1927,7 @@ function updateLasers() {
         // Check collision with player using precise laser collision
         if (checkLaserCollision(dino, laser) && !invincible && !isDashing) {
             console.log('⚡💥 Player hit by laser!');
-            gameOver();
+            gameOver('green_goblin_laser');
             return;
         }
     }
@@ -1984,7 +1991,7 @@ function updateFireballs() {
         // Check collision with player using precise fireball collision
         if (checkFireballCollision(dino, fireball) && !invincible && !isDashing) {
             console.log('💥 Player hit by fireball!');
-            gameOver();
+            gameOver('boss_fireball');
             return;
         }
     }
@@ -2004,18 +2011,20 @@ function showBossDefeated() {
     console.log('✅ Boss defeated message shown!');
 }
 
-function gameOver() {
+function gameOver(cause = 'obstacle') {
     isGameOver = true;
-    gameStarted = false; // Reset this so start screen can be shown again
+    // Don't set gameStarted = false immediately - let death screen show first
+    deathCause = cause;
+    isShowingDeathScreen = true;
+    deathScreenStartTime = performance.now();
+    
     pauseMusic(); // Use new music system
     
     // 🎵 Stop boss/Green Goblin music if it's playing when game ends
     stopBossMusic();
     stopGreenGoblinMusic();
     
-    // CRITICAL FIX: Set high score screen active flag immediately
-    highScoreScreenActive = true;
-    console.log('🛡️ High score screen protection activated');
+    console.log(`💀 Player died from: ${cause}`);
     
     // Hide original game over elements
     const gameOverText = document.getElementById('gameOver');
@@ -2023,14 +2032,18 @@ function gameOver() {
     gameOverText.classList.remove('visible');
     restartButton.classList.remove('visible');
     
-    // Show the new high score screen after a brief delay
+    // After death screen duration, transition to high score screen
     setTimeout(() => {
+        isShowingDeathScreen = false;
+        gameStarted = false; // Now we can reset this
+        highScoreScreenActive = true;
+        
         if (window.leaderboard && window.leaderboard.checkForHighScore) {
             window.leaderboard.checkForHighScore(score);
         } else {
             console.error('Leaderboard not initialized yet! Score:', score);
         }
-    }, 100); // Quick transition without waiting for sound
+    }, DEATH_SCREEN_DURATION);
 }
 
 // Start Screen Functions
@@ -2496,6 +2509,11 @@ function startGame() {
     lastPlatformSpawn = Date.now();
     gameSpeedMultiplier = 1;
     
+    // Reset death screen state
+    isShowingDeathScreen = false;
+    deathScreenStartTime = 0;
+    deathCause = null;
+    
     // Show game container
     const gameContainer = document.getElementById('gameContainer');
     if (gameContainer) {
@@ -2680,7 +2698,8 @@ function update(currentTime) {
             obstacles.splice(i, 1);
             score++;
         } else if (checkCollision(dino, obstacles[i]) && !invincible && !isDashing) {
-            gameOver();
+            const cactusType = obstacles[i].type || 'cactus';
+            gameOver(cactusType);
             return;
         }
     }
@@ -3188,6 +3207,74 @@ function draw() {
     
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
+    
+    // Draw death screen overlay if showing
+    drawDeathScreen();
+}
+
+function drawDeathScreen() {
+    if (!isShowingDeathScreen) return;
+    
+    // Draw semi-transparent overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Get death cause message
+    let deathMessage = 'GAME OVER';
+    let causeMessage = '';
+    
+    switch(deathCause) {
+        case 'cactus':
+        case 'normal':
+            causeMessage = 'Hit a Cactus!';
+            break;
+        case 'xl':
+            causeMessage = 'Hit an XL Cactus!';
+            break;
+        case 'xxl':
+            causeMessage = 'Hit an XXL Cactus!';
+            break;
+        case 'bird':
+            causeMessage = 'Hit a Bird!';
+            break;
+        case 'pterodactyl':
+            causeMessage = 'Hit a Pterodactyl!';
+            break;
+        case 'boss_fireball':
+            causeMessage = 'Hit by Boss Fireball!';
+            break;
+        case 'green_goblin_laser':
+            causeMessage = 'Hit by Green Goblin Laser!';
+            break;
+        default:
+            causeMessage = 'Collision Detected!';
+    }
+    
+    // Main Game Over text
+    ctx.fillStyle = '#FF4444';
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(deathMessage, canvas.width / 2, canvas.height / 2 - 40);
+    
+    // Death cause text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText(causeMessage, canvas.width / 2, canvas.height / 2 + 10);
+    
+    // Score text
+    ctx.fillStyle = '#FFFF77';
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+    
+    // Calculate remaining time
+    const elapsed = performance.now() - deathScreenStartTime;
+    const remaining = Math.max(0, Math.ceil((DEATH_SCREEN_DURATION - elapsed) / 1000));
+    
+    if (remaining > 0) {
+        ctx.fillStyle = '#CCCCCC';
+        ctx.font = '16px Arial';
+        ctx.fillText(`Transitioning to high scores in ${remaining}s...`, canvas.width / 2, canvas.height / 2 + 85);
+    }
 }
 
 let gameLoopId = null;
@@ -3195,7 +3282,11 @@ let gameLoopId = null;
 function gameLoop(currentTime) {
     // CRITICAL FIX: Don't run game loop when high score screen is active
     if (gameStarted && !highScoreScreenActive) {
-        update(currentTime);
+        // Update game only if not showing death screen
+        if (!isShowingDeathScreen) {
+            update(currentTime);
+        }
+        // Always draw (to show death screen)
         draw();
     }
     gameLoopId = requestAnimationFrame(gameLoop);
