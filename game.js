@@ -29,6 +29,7 @@ let score = 0;
 let isGameOver = false;
 let isJumping = false;
 let canDoubleJump = false;
+let canTripleJump = false;
 let velocityY = 0;
 let dinoFrame = 1;
 let lastObstacleSpawn = 0;
@@ -38,6 +39,9 @@ let birds = []; // Flying obstacles
 let platforms = []; // Floating Mario-style platforms
 let lastPlatformSpawn = 0;
 let gameSpeedMultiplier = 1;
+
+// Critical fix: Add high score screen blocking flag
+let highScoreScreenActive = false;
 
 // Start screen state
 let gameStarted = false;
@@ -55,6 +59,37 @@ function getAvailableInvincibilityCharges() {
     return Math.floor(score / INVINCIBILITY_SCORE_STEP) - invincibilityChargesUsed;
 }
 
+// Dash power-up system
+let dashCharges = 0;
+let isDashing = false;
+let dashTimer = 0;
+let dashCooldown = 0;
+let rockets = []; // Rocket power-ups to collect
+let currentHundredInterval = -1;
+let rocketSpawnScores = []; // Predetermined scores when rockets should spawn
+const DASH_DURATION = 300; // ms
+const DASH_SPEED = 12; // pixels per frame
+const DASH_COOLDOWN = 1000; // ms between dashes
+const ROCKETS_PER_HUNDRED = { min: 4, max: 6 }; // 4-6 rockets per 100 score
+
+function generateRocketSpawnScores(hundredInterval) {
+    // Generate 4-6 random scores spread across the 100-point range
+    const startScore = hundredInterval * 100;
+    const endScore = startScore + 100;
+    const numRockets = Math.floor(Math.random() * (ROCKETS_PER_HUNDRED.max - ROCKETS_PER_HUNDRED.min + 1)) + ROCKETS_PER_HUNDRED.min;
+    
+    const spawnScores = [];
+    for (let i = 0; i < numRockets; i++) {
+        // Spread rockets evenly across the range with some randomness
+        const basePosition = startScore + (i + 1) * (100 / (numRockets + 1));
+        const randomOffset = (Math.random() - 0.5) * 15; // ±7.5 points variation
+        const spawnScore = Math.max(startScore + 5, Math.min(endScore - 5, Math.round(basePosition + randomOffset)));
+        spawnScores.push(spawnScore);
+    }
+    
+    return spawnScores.sort((a, b) => a - b); // Sort in ascending order
+}
+
 function activateInvincibility() {
     if (invincible || getAvailableInvincibilityCharges() <= 0 || isGameOver) return;
     
@@ -64,6 +99,45 @@ function activateInvincibility() {
     
     console.log('🛡️ Invincibility activated! Duration:', INVINCIBILITY_DURATION/1000, 'seconds');
     console.log('🔢 Charges remaining:', getAvailableInvincibilityCharges());
+}
+
+// DEV TEST: Toggle invincibility for testing
+function toggleDevTestInvincibility() {
+    if (isGameOver) return;
+    
+    if (invincible) {
+        // Turn OFF invincibility
+        invincible = false;
+        invincibilityTimer = 0;
+        console.log('🧪 DEV TEST: Invincibility DISABLED');
+        console.log('🔍 You can now test collision detection');
+    } else {
+        // Turn ON invincibility
+        invincible = true;
+        invincibilityTimer = 5 * 60 * 60 * 1000; // 5 hours in milliseconds
+        console.log('🧪 DEV TEST: Invincibility ENABLED for 5 hours');
+        console.log('🛡️ You are now invincible');
+    }
+    
+    // Update button visual state
+    updateDevTestButtonState();
+}
+
+function updateDevTestButtonState() {
+    const devBtn = document.getElementById('devTestButton');
+    if (devBtn) {
+        if (invincible) {
+            // Show as active/on
+            devBtn.style.background = 'linear-gradient(135deg, #4CAF50, #81C784 60%, #fff 100%)';
+            devBtn.style.boxShadow = '0 2px 8px 1px rgba(76,175,80,0.4), 0 0 0 3px #4CAF5044';
+            devBtn.title = 'DEV: Invincibility ON - Click to turn OFF';
+        } else {
+            // Show as inactive/off  
+            devBtn.style.background = 'linear-gradient(135deg, #FF1744, #E91E63 60%, #fff 100%)';
+            devBtn.style.boxShadow = '0 2px 8px 1px rgba(255,23,68,0.4), 0 0 0 3px #FF174444';
+            devBtn.title = 'DEV: Invincibility OFF - Click to turn ON';
+        }
+    }
 }
 
 function updateInvincibility(deltaTime) {
@@ -77,6 +151,45 @@ function updateInvincibility(deltaTime) {
     }
 }
 
+function updateDash(deltaTime) {
+    // Update dash timer
+    if (isDashing) {
+        dashTimer -= deltaTime;
+        if (dashTimer <= 0) {
+            isDashing = false;
+            dashTimer = 0;
+            console.log('🚀 Dash ended');
+        }
+    }
+    
+    // Update dash cooldown
+    if (dashCooldown > 0) {
+        dashCooldown -= deltaTime;
+        if (dashCooldown <= 0) {
+            dashCooldown = 0;
+        }
+    }
+}
+
+function canDash() {
+    return dashCharges > 0 && !isDashing && dashCooldown <= 0 && !isGameOver;
+}
+
+function activateDash() {
+    if (!canDash()) return;
+    
+    isDashing = true;
+    dashTimer = DASH_DURATION;
+    dashCooldown = DASH_COOLDOWN;
+    dashCharges--;
+    
+    console.log(`🚀 Dash activated! Charges left: ${dashCharges}`);
+}
+
+function getDashCharges() {
+    return dashCharges;
+}
+
 // Boss system variables
 let boss = null;
 let bossActive = false;
@@ -87,6 +200,16 @@ let bossLevel = 1;
 let fireballs = [];
 let lastBossScore = 0;
 
+// Green Goblin boss system variables
+let greenGoblin = null;
+let greenGoblinActive = false;
+let greenGoblinSpawnTime = 0;
+let greenGoblinShootTime = 0;
+let greenGoblinLevel = 1;
+let greenGoblinFlyDirection = 1; // 1 for up, -1 for down
+let lasers = [];
+let lastGreenGoblinScore = 0;
+
 // Boss constants
 const BOSS_WIDTH = 60;
 const BOSS_HEIGHT = 80;
@@ -95,13 +218,21 @@ const BOSS_GRAVITY = 0.4;
 const FIREBALL_SPEED = 3;
 const FIREBALL_SIZE = 12;
 
+// Green Goblin constants
+const GREEN_GOBLIN_WIDTH = 60;
+const GREEN_GOBLIN_HEIGHT = 70;
+const GREEN_GOBLIN_FLY_SPEED = 1; // Slow up/down movement
+const LASER_SPEED = 4; // Faster than fireballs
+const LASER_WIDTH = 30; // Much longer than fireballs
+const LASER_HEIGHT = 6;
+
 // Get canvas and context
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Set canvas size
+// Set canvas size - made taller for more sky space
 canvas.width = 800;
-canvas.height = 400;
+canvas.height = 450;
 
 // Game objects
 const dino = {
@@ -113,14 +244,22 @@ const dino = {
 
 const obstacles = [];
 const ground = {
-    y: canvas.height - 40,
-    height: 40
+    y: canvas.height - 50,
+    height: 50
 };
 
 // 🎵 Clean Simple Music System - One Working Audio File
 let zenAudio = null;
 let musicStarted = false;
-let musicEnabled = true; // Music on by default
+let musicEnabled = true;
+
+// 🎵 Boss Music System - Separate from main music
+let bossAudio = null;
+let bossAudioPlaying = false;
+
+// 🎵 Green Goblin Music System - Takes priority over regular boss music
+let greenGoblinAudio = null;
+let greenGoblinAudioPlaying = false;
 
 function initMusic() {
     try {
@@ -149,10 +288,58 @@ function initMusic() {
         });
         
         console.log('🎵 Zen Garden music initialized');
+
+        // Initialize boss music
+        console.log('🎵 Initializing Boss music...');
+        bossAudio = new Audio();
+        bossAudio.volume = 0.3; // Boss music volume
+        bossAudio.loop = true; // Loop during boss fights
+        
+        // Use the suarsong.wav file
+        bossAudio.src = 'assets/audio/suarsong.wav';
+        bossAudio.preload = 'auto';
+        
+        // Handle errors gracefully
+        bossAudio.addEventListener('error', function(e) {
+            console.log('🔇 Boss music file not found. Please ensure "suarsong.wav" is in assets/audio/ folder');
+            bossAudio = null;
+        });
+        
+        // Log when boss music is ready
+        bossAudio.addEventListener('canplaythrough', function() {
+            console.log('🎵 Boss music ready to play');
+        });
+        
+        console.log('🎵 Boss music initialized');
+
+        // Initialize Green Goblin music
+        console.log('🎵 Initializing Green Goblin music...');
+        greenGoblinAudio = new Audio();
+        greenGoblinAudio.volume = 0.4; // Slightly louder for dramatic effect
+        greenGoblinAudio.loop = true; // Loop during Green Goblin fights
+        
+        // Use the green goblin audio file
+        greenGoblinAudio.src = 'assets/audio/greengoblin.wav';
+        greenGoblinAudio.preload = 'auto';
+        
+        // Handle errors gracefully
+        greenGoblinAudio.addEventListener('error', function(e) {
+            console.log('🔇 Green Goblin music file not found. Please ensure "greengoblin.wav" is in assets/audio/ folder');
+            greenGoblinAudio = null;
+        });
+        
+        // Log when Green Goblin music is ready
+        greenGoblinAudio.addEventListener('canplaythrough', function() {
+            console.log('🎵 Green Goblin music ready to play');
+        });
+        
+        console.log('🎵 Green Goblin music initialized');
         
     } catch (error) {
         console.log('🔇 Music system not available:', error);
         zenAudio = null;
+        bossAudio = null;
+        greenGoblinAudio = null;
     }
 }
 
@@ -177,6 +364,92 @@ function pauseMusic() {
         zenAudio.currentTime = 0; // Reset to beginning
     }
     musicStarted = false;
+}
+
+function playBossMusic() {
+    if (!musicEnabled || !bossAudio || bossAudioPlaying) return;
+    
+    // Pause main music when boss music starts
+    if (zenAudio && musicStarted) {
+        zenAudio.pause();
+    }
+    
+    bossAudioPlaying = true;
+    
+    bossAudio.play().then(() => {
+        console.log('🎵 Boss music playing!');
+    }).catch((error) => {
+        console.log('🔇 Boss music playback failed:', error);
+        bossAudioPlaying = false;
+        // Resume main music if boss music fails
+        if (musicEnabled && zenAudio && musicStarted) {
+            zenAudio.play().catch(e => console.log('Failed to resume zen music:', e));
+        }
+    });
+}
+
+function stopBossMusic() {
+    if (bossAudio && bossAudioPlaying) {
+        bossAudio.pause();
+        bossAudio.currentTime = 0; // Reset to beginning
+        bossAudioPlaying = false;
+        console.log('🎵 Boss music stopped');
+    }
+    
+    // Resume main music after boss music stops (only if Green Goblin isn't playing)
+    if (musicEnabled && zenAudio && musicStarted && gameStarted && !isGameOver && !greenGoblinAudioPlaying) {
+        zenAudio.play().catch(error => {
+            console.log('🔇 Failed to resume zen music:', error);
+        });
+    }
+}
+
+function playGreenGoblinMusic() {
+    if (!musicEnabled || !greenGoblinAudio || greenGoblinAudioPlaying) return;
+    
+    // Stop all other music when Green Goblin music starts (priority)
+    if (zenAudio && musicStarted) {
+        zenAudio.pause();
+    }
+    if (bossAudio && bossAudioPlaying) {
+        bossAudio.pause();
+        bossAudioPlaying = false;
+    }
+    
+    greenGoblinAudioPlaying = true;
+    
+    greenGoblinAudio.play().then(() => {
+        console.log('🎵 Green Goblin music playing! (Priority music)');
+    }).catch((error) => {
+        console.log('🔇 Green Goblin music playback failed:', error);
+        greenGoblinAudioPlaying = false;
+        // Try to resume other music if Green Goblin fails
+        if (musicEnabled && bossAudio && !greenGoblinAudioPlaying) {
+            playBossMusic();
+        } else if (musicEnabled && zenAudio && musicStarted) {
+            zenAudio.play().catch(e => console.log('Failed to resume zen music:', e));
+        }
+    });
+}
+
+function stopGreenGoblinMusic() {
+    if (greenGoblinAudio && greenGoblinAudioPlaying) {
+        greenGoblinAudio.pause();
+        greenGoblinAudio.currentTime = 0; // Reset to beginning
+        greenGoblinAudioPlaying = false;
+        console.log('🎵 Green Goblin music stopped');
+    }
+    
+    // Resume appropriate music after Green Goblin music stops
+    if (musicEnabled && gameStarted && !isGameOver) {
+        if (bossActive && bossAudio) {
+            playBossMusic(); // Resume boss music if boss is still active
+        } else if (zenAudio && musicStarted) {
+            zenAudio.play().catch(error => {
+                console.log('🔇 Failed to resume zen music:', error);
+            });
+        }
+    }
 }
 
 // Music toggle functions
@@ -318,16 +591,114 @@ function createDinoSprite(frame) {
     return canvas;
 }
 
-function createCactusSprite() {
+function createCactusSprite(sizeType = 'normal') {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = 20;
-    canvas.height = 40;
+    
+    // Different canvas sizes for different cactus types
+    switch(sizeType) {
+        case 'xl':
+            canvas.width = 30;
+            canvas.height = 60;
+            break;
+        case 'xxl':
+            canvas.width = 40;
+            canvas.height = 80;
+            break;
+        default: // normal
+            canvas.width = 20;
+            canvas.height = 40;
+    }
 
-    ctx.fillStyle = '#2E7D32';
-    ctx.fillRect(8, 0, 4, 40);
-    ctx.fillRect(4, 10, 12, 4);
-    ctx.fillRect(0, 20, 20, 4);
+    const baseColor = '#2E7D32'; // Forest green
+    const darkColor = '#1B5E20'; // Dark green for shadows
+    const lightColor = '#4CAF50'; // Light green for highlights
+    
+    if (sizeType === 'xxl') {
+        // XXL Cactus - Massive desert cactus with multiple arms
+        ctx.fillStyle = baseColor;
+        
+        // Main thick trunk
+        ctx.fillRect(14, 0, 12, 80);
+        
+        // Multiple arms for intimidating look
+        // Lower left arm
+        ctx.fillRect(6, 25, 8, 6);
+        ctx.fillRect(0, 25, 6, 15);
+        
+        // Upper left arm
+        ctx.fillRect(8, 15, 6, 6);
+        ctx.fillRect(2, 10, 6, 12);
+        
+        // Lower right arm
+        ctx.fillRect(26, 30, 8, 6);
+        ctx.fillRect(34, 25, 6, 20);
+        
+        // Upper right arm
+        ctx.fillRect(26, 20, 6, 6);
+        ctx.fillRect(32, 15, 6, 12);
+        
+        // Add shadows for depth
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(14, 0, 3, 80); // Main trunk shadow
+        ctx.fillRect(0, 25, 2, 15); // Left arm shadows
+        ctx.fillRect(2, 10, 2, 12);
+        ctx.fillRect(34, 25, 2, 20); // Right arm shadows
+        ctx.fillRect(32, 15, 2, 12);
+        
+        // Add spikes/thorns for danger
+        ctx.fillStyle = '#8D6E63'; // Brown thorns
+        for (let y = 5; y < 75; y += 8) {
+            ctx.fillRect(12, y, 2, 2);
+            ctx.fillRect(26, y + 2, 2, 2);
+        }
+        
+    } else if (sizeType === 'xl') {
+        // XL Cactus - Large desert cactus with arms
+        ctx.fillStyle = baseColor;
+        
+        // Main trunk
+        ctx.fillRect(10, 0, 10, 60);
+        
+        // Left arm
+        ctx.fillRect(4, 20, 6, 5);
+        ctx.fillRect(0, 18, 4, 12);
+        
+        // Right arm
+        ctx.fillRect(20, 25, 6, 5);
+        ctx.fillRect(26, 20, 4, 15);
+        
+        // Upper small arm
+        ctx.fillRect(6, 12, 4, 4);
+        ctx.fillRect(2, 10, 4, 8);
+        
+        // Add shadows
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(10, 0, 3, 60); // Main shadow
+        ctx.fillRect(0, 18, 2, 12); // Left shadow
+        ctx.fillRect(26, 20, 2, 15); // Right shadow
+        ctx.fillRect(2, 10, 2, 8); // Upper shadow
+        
+        // Add some thorns
+        ctx.fillStyle = '#8D6E63';
+        for (let y = 5; y < 55; y += 10) {
+            ctx.fillRect(8, y, 2, 2);
+            ctx.fillRect(20, y + 3, 2, 2);
+        }
+        
+    } else {
+        // Normal cactus (existing design)
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(8, 0, 4, 40);
+        ctx.fillRect(4, 10, 12, 4);
+        ctx.fillRect(0, 20, 20, 4);
+        
+        // Add shadows
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(8, 0, 2, 40);
+        ctx.fillRect(4, 10, 2, 4);
+        ctx.fillRect(0, 20, 2, 4);
+    }
 
     return canvas;
 }
@@ -418,31 +789,73 @@ function createBirdSprite() {
     ctx.fillRect(6, 8, 12, 4);
     ctx.fillRect(8, 6, 8, 8);
     
-    // Bird head - Darker light red
+    // Bird head - Darker light red (facing left towards dino)
     ctx.fillStyle = '#FF5252';
-    ctx.fillRect(16, 6, 6, 6);
+    ctx.fillRect(2, 6, 6, 6);
     
     // Wings - Medium red
     ctx.fillStyle = '#F44336';
     ctx.fillRect(4, 6, 8, 2);
     ctx.fillRect(12, 6, 8, 2);
     
-    // Eye - Black (kept same for visibility)
+    // Eye - Black (on left side facing dino)
     ctx.fillStyle = '#000000';
-    ctx.fillRect(18, 7, 1, 1);
+    ctx.fillRect(4, 7, 1, 1);
     
-    // Beak - Orange (kept same for contrast)
+    // Beak - Orange (pointing left towards dino)
     ctx.fillStyle = '#FFA726';
-    ctx.fillRect(22, 8, 2, 2);
+    ctx.fillRect(0, 8, 2, 2);
 
     return canvas;
 }
 
-function createPlatformSprite() {
+function createPterodactylSprite() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = 60; // Smaller platform
-    canvas.height = 12; // Smaller height
+    canvas.width = 36;
+    canvas.height = 24;
+
+    // Pterodactyl body - Bright green (much more visible!)
+    ctx.fillStyle = '#4CAF50';
+    ctx.fillRect(8, 12, 20, 6);
+    ctx.fillRect(12, 8, 12, 12);
+    
+    // Head - facing left towards dino (darker green)
+    ctx.fillStyle = '#2E7D32';
+    ctx.fillRect(2, 8, 10, 8);
+    
+    // Long beak - distinctive pterodactyl feature (orange for contrast)
+    ctx.fillStyle = '#FF9800';
+    ctx.fillRect(0, 10, 4, 4);
+    
+    // Large wings - spread out (dark green)
+    ctx.fillStyle = '#1B5E20';
+    ctx.fillRect(6, 4, 12, 4); // Top wing
+    ctx.fillRect(18, 4, 12, 4); // Top wing
+    ctx.fillRect(8, 20, 10, 3); // Bottom wing
+    ctx.fillRect(18, 20, 10, 3); // Bottom wing
+    
+    // Wing membranes - lighter green
+    ctx.fillStyle = '#66BB6A';
+    ctx.fillRect(8, 6, 8, 2);
+    ctx.fillRect(20, 6, 8, 2);
+    
+    // Eye - Red (still menacing but visible)
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(6, 10, 2, 2);
+    
+    // Crest - distinctive feature (lime green)
+    ctx.fillStyle = '#8BC34A';
+    ctx.fillRect(8, 6, 6, 2);
+
+    return canvas;
+}
+
+function createPlatformSprite(width = 60) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = width; // Dynamic platform width
+    canvas.height = 12; // Consistent height
 
     // 🌱 Grassy earth platform
     // Dirt/earth base
@@ -458,20 +871,20 @@ function createPlatformSprite() {
     ctx.fillStyle = '#4CAF50'; // Green grass
     ctx.fillRect(0, 0, canvas.width, 6);
     
-    // Grass texture - small grass blades
+    // Grass texture - small grass blades (scale with width)
     ctx.fillStyle = '#2E7D32'; // Dark green
     for (let x = 0; x < canvas.width; x += 3) {
         const grassHeight = 1 + Math.random() * 2;
         ctx.fillRect(x, 1, 1, grassHeight);
     }
     
-    // Light green highlights on grass
+    // Light green highlights on grass (scale with width)
     ctx.fillStyle = '#66BB6A'; // Light green
     for (let x = 1; x < canvas.width; x += 4) {
         ctx.fillRect(x, 2, 1, 1);
     }
     
-    // Small leaves/flowers scattered
+    // Small leaves/flowers scattered (scale with width)
     ctx.fillStyle = '#8BC34A'; // Lime green
     for (let x = 5; x < canvas.width; x += 12) {
         ctx.fillRect(x, 1, 2, 1); // Small leaf
@@ -586,18 +999,208 @@ function createFireballSprite() {
     return canvas;
 }
 
+function createGreenGoblinSprite() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 60;
+    canvas.height = 70;
+
+    // Green Goblin - Scary flying villain
+    
+    // Glider base (dark metal platform he rides)
+    ctx.fillStyle = '#2C2C2C'; // Dark gray metal
+    ctx.fillRect(5, 55, 50, 8);
+    ctx.fillRect(0, 58, 60, 4); // Wider glider wings
+    
+    // Glider details (spikes and tech)
+    ctx.fillStyle = '#FF4500'; // Orange glow details
+    ctx.fillRect(10, 57, 3, 2);
+    ctx.fillRect(25, 57, 3, 2);
+    ctx.fillRect(40, 57, 3, 2);
+    ctx.fillRect(47, 57, 3, 2);
+    
+    // Main body - Green and purple costume
+    ctx.fillStyle = '#228B22'; // Forest green body
+    ctx.fillRect(20, 25, 20, 30);
+    ctx.fillRect(15, 30, 30, 20);
+    
+    // Purple costume details
+    ctx.fillStyle = '#4B0082'; // Dark purple
+    ctx.fillRect(22, 27, 16, 6); // Chest piece
+    ctx.fillRect(18, 35, 24, 4); // Belt area
+    
+    // Arms (extending outward menacingly)
+    ctx.fillStyle = '#228B22';
+    ctx.fillRect(10, 30, 10, 8); // Left arm
+    ctx.fillRect(40, 30, 10, 8); // Right arm
+    
+    // Hands with claws
+    ctx.fillStyle = '#8B4513'; // Brown gloves
+    ctx.fillRect(8, 35, 6, 6);   // Left hand
+    ctx.fillRect(46, 35, 6, 6);  // Right hand
+    
+    // Claws
+    ctx.fillStyle = '#FFD700'; // Golden claws
+    ctx.fillRect(6, 37, 3, 1);   // Left claws
+    ctx.fillRect(52, 37, 3, 1);  // Right claws
+    
+    // Head - Evil goblin face
+    ctx.fillStyle = '#228B22'; // Green head
+    ctx.fillRect(18, 8, 24, 20);
+    ctx.fillRect(20, 5, 20, 25); // Larger head
+    
+    // Goblin ears (pointed)
+    ctx.fillStyle = '#1B5E20'; // Darker green
+    ctx.fillRect(15, 12, 4, 8);  // Left ear
+    ctx.fillRect(41, 12, 4, 8);  // Right ear
+    
+    // Evil eyes (glowing red)
+    ctx.fillStyle = '#FF0000'; // Bright red eyes
+    ctx.fillRect(22, 12, 4, 4);  // Left eye
+    ctx.fillRect(34, 12, 4, 4);  // Right eye
+    
+    // Eye glow effect
+    ctx.fillStyle = '#FF6666'; // Light red glow
+    ctx.fillRect(21, 11, 6, 6);  // Left eye glow
+    ctx.fillRect(33, 11, 6, 6);  // Right eye glow
+    
+    // Evil grin mouth
+    ctx.fillStyle = '#000000'; // Black mouth
+    ctx.fillRect(24, 20, 12, 3);
+    
+    // Sharp teeth
+    ctx.fillStyle = '#FFFFFF'; // White teeth
+    ctx.fillRect(25, 18, 2, 4);  // Fangs
+    ctx.fillRect(29, 18, 2, 4);
+    ctx.fillRect(33, 18, 2, 4);
+    
+    // Evil mask/helmet details
+    ctx.fillStyle = '#4B0082'; // Purple mask
+    ctx.fillRect(20, 8, 20, 4);  // Mask top
+    
+    // Horns/spikes on mask
+    ctx.fillStyle = '#FFD700'; // Golden horns
+    ctx.fillRect(18, 5, 3, 6);   // Left horn
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(39, 5, 3, 6);   // Right horn
+    
+    // Cape flowing behind (optional detail)
+    ctx.fillStyle = '#4B0082'; // Purple cape
+    ctx.fillRect(5, 25, 8, 25);  // Left cape
+    ctx.fillRect(47, 25, 8, 25); // Right cape
+
+    return canvas;
+}
+
+function createLaserSprite() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 30; // Much longer than fireball
+    canvas.height = 6;
+
+    // Laser beam - bright green with electric effect
+    
+    // Core laser beam
+    ctx.fillStyle = '#00FF00'; // Bright green core
+    ctx.fillRect(0, 2, 30, 2);
+    
+    // Outer glow
+    ctx.fillStyle = '#66FF66'; // Light green glow
+    ctx.fillRect(0, 1, 30, 4);
+    
+    // Electric edges
+    ctx.fillStyle = '#FFFF00'; // Yellow electric edges
+    ctx.fillRect(0, 0, 30, 1);
+    ctx.fillRect(0, 5, 30, 1);
+    
+    // Bright white core
+    ctx.fillStyle = '#FFFFFF'; // White hot center
+    ctx.fillRect(2, 2.5, 26, 1);
+
+    return canvas;
+}
+
+function createRocketSprite() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 24;
+    canvas.height = 32;
+
+    // Rocket power-up with glowing effects
+    
+    // Outer glow effect
+    ctx.fillStyle = 'rgba(255, 165, 0, 0.3)'; // Orange glow
+    ctx.fillRect(0, 0, 24, 32);
+    
+    // Rocket body - main cylinder
+    ctx.fillStyle = '#C0C0C0'; // Silver body
+    ctx.fillRect(6, 8, 12, 20);
+    
+    // Rocket nose cone
+    ctx.fillStyle = '#FF0000'; // Red nose
+    ctx.fillRect(8, 4, 8, 6);
+    ctx.fillRect(9, 2, 6, 4);
+    ctx.fillRect(10, 1, 4, 2);
+    
+    // Rocket fins
+    ctx.fillStyle = '#FF6B35'; // Orange fins
+    ctx.fillRect(2, 20, 6, 8); // Left fin
+    ctx.fillRect(16, 20, 6, 8); // Right fin
+    ctx.fillRect(8, 25, 8, 6); // Bottom fin
+    
+    // Rocket engine glow
+    ctx.fillStyle = '#FFD700'; // Gold engine
+    ctx.fillRect(8, 28, 8, 4);
+    
+    // Engine flames (animated effect base)
+    ctx.fillStyle = '#FF4500'; // Orange flame
+    ctx.fillRect(9, 30, 6, 2);
+    ctx.fillStyle = '#FFFF00'; // Yellow flame center
+    ctx.fillRect(10, 30, 4, 2);
+    
+    // Rocket details/windows
+    ctx.fillStyle = '#00BFFF'; // Light blue windows
+    ctx.fillRect(8, 10, 2, 2);
+    ctx.fillRect(14, 10, 2, 2);
+    ctx.fillRect(11, 14, 2, 2);
+    
+    // Power symbol
+    ctx.fillStyle = '#FFFF00'; // Yellow power symbol
+    ctx.fillRect(10, 17, 4, 1);
+    ctx.fillRect(11, 16, 2, 3);
+    
+    return canvas;
+}
+
 // Load sprites
 let dinoRun1 = createDinoSprite('run1');
 let dinoRun2 = createDinoSprite('run2');
 let dinoJump = createDinoSprite('jump');
-let cactus = createCactusSprite();
+// Create different cactus sprites
+let cactusSprites = {
+    normal: createCactusSprite('normal'),
+    xl: createCactusSprite('xl'),
+    xxl: createCactusSprite('xxl')
+};
 let groundTexture = createGroundSprite();
 let cloudSprite = createCloudSprite();
 let fishSprite = createFishSprite();
 let birdSprite = createBirdSprite();
-let platformSprite = createPlatformSprite();
+let pterodactylSprite = createPterodactylSprite();
+// Create platform sprites for different sizes
+let platformSprites = {
+    small: createPlatformSprite(40),
+    medium: createPlatformSprite(60),
+    large: createPlatformSprite(80),
+    xlarge: createPlatformSprite(100),
+    xxl: createPlatformSprite(120),
+    xxxl: createPlatformSprite(140)
+};
 let bossSprite = createBossSprite(1); // Initial boss sprite
 let fireballSprite = createFireballSprite(); // Now blue fireballs
+let greenGoblinSprite = createGreenGoblinSprite(); // Green Goblin boss
+let laserSprite = createLaserSprite(); // Green laser projectiles
+let rocketSprite = createRocketSprite(); // Dash power-up rockets
 
 // Create star array
 const stars = [];
@@ -660,6 +1263,7 @@ function jump() {
         isGameOver: isGameOver,
         isJumping: isJumping,
         canDoubleJump: canDoubleJump,
+        canTripleJump: canTripleJump,
         gameStarted: gameStarted
     });
     
@@ -668,23 +1272,29 @@ function jump() {
             console.log('✅ Normal jump executed!');
             isJumping = true;
             canDoubleJump = true;
+            canTripleJump = false;
             velocityY = JUMP_FORCE;
         } else if (canDoubleJump) {
             console.log('✅ Double jump executed!');
-            velocityY = JUMP_FORCE * 0.9; // Improved double jump force
+            velocityY = JUMP_FORCE * 0.9; // Double jump force
             canDoubleJump = false;
+            canTripleJump = true;
+        } else if (canTripleJump) {
+            console.log('🚀 Triple jump executed!');
+            velocityY = JUMP_FORCE * 0.8; // Triple jump force (slightly weaker)
+            canTripleJump = false;
         } else {
-            console.log('❌ Jump blocked - already jumping and no double jump available');
+            console.log('❌ Jump blocked - no more jumps available');
         }
     } else {
         console.log('❌ Jump blocked - game over');
     }
 }
 
-function doubleJump() {
-    if (!isGameOver && canDoubleJump) {
-        velocityY = JUMP_FORCE * 0.9;
-        canDoubleJump = false;
+function tripleJump() {
+    if (!isGameOver && canTripleJump) {
+        velocityY = JUMP_FORCE * 0.8;
+        canTripleJump = false;
     }
 }
 
@@ -700,33 +1310,73 @@ function spawnObstacle() {
         
         const currentSpeed = GAME_SPEED * gameSpeedMultiplier;
         
-        // Random size between 0.7 and 1.3
-        const size = 0.7 + Math.random() * 0.6;
+        // Determine cactus type based on score and rarity
+        let cactusType = 'normal';
+        let baseWidth = 20;
+        let baseHeight = 40;
+        let sizeMultiplier = 0.7 + Math.random() * 0.6; // For normal cacti
         
-        // Random height variation
-        const heightVariation = Math.random() * 10 - 5; // ±5 pixels
+        // XXL Cactus: After score 150, rare (5%)
+        if (score >= 150 && Math.random() < 0.05) {
+            cactusType = 'xxl';
+            baseWidth = 40;
+            baseHeight = 80;
+            sizeMultiplier = 1.0; // Fixed size for special cacti
+        }
+        // XL Cactus: After score 100, uncommon (10%)
+        else if (score >= 100 && Math.random() < 0.10) {
+            cactusType = 'xl';
+            baseWidth = 30;
+            baseHeight = 60;
+            sizeMultiplier = 1.0; // Fixed size for special cacti
+        }
+        
+        // Random height variation (smaller for large cacti)
+        const heightVariation = cactusType === 'normal' ? 
+            Math.random() * 10 - 5 : // ±5 pixels for normal
+            Math.random() * 6 - 3;   // ±3 pixels for large cacti
 
-        // Ensure minimum spacing for jumpability
-        const minSpacing = 200; // Minimum space between obstacles
-        const xOffset = Math.random() * 50; // Reduced random offset
+        // Ensure minimum spacing for jumpability (larger for big cacti)
+        const minSpacing = cactusType === 'xxl' ? 250 : 
+                          cactusType === 'xl' ? 225 : 200;
+        const xOffset = Math.random() * 50;
 
         obstacles.push({
             x: canvas.width + xOffset + minSpacing,
-            y: ground.y - (40 * size) + heightVariation,
-            width: 20 * size,
-            height: 40 * size,
-            size: size,
-            speed: currentSpeed * (0.9 + Math.random() * 0.2) // Reduced speed variation
+            y: ground.y - (baseHeight * sizeMultiplier) + heightVariation,
+            width: baseWidth * sizeMultiplier,
+            height: baseHeight * sizeMultiplier,
+            size: sizeMultiplier,
+            speed: currentSpeed * (0.9 + Math.random() * 0.2),
+            type: cactusType // Store cactus type for rendering
         });
         
-        // Spawn birds after score 20
-        if (score > 20 && Math.random() < 0.3) {
+        // Log special cactus spawns
+        if (cactusType !== 'normal') {
+            console.log(`🌵 ${cactusType.toUpperCase()} cactus spawned! Size: ${Math.round(baseWidth * sizeMultiplier)}x${Math.round(baseHeight * sizeMultiplier)}px`);
+        }
+        
+        // Spawn birds after score 20 (reduced frequency for fairness)
+        if (score > 20 && Math.random() < 0.10) {
             birds.push({
                 x: canvas.width + 100,
-                y: ground.y - 80 - Math.random() * 40,
+                y: 20 + Math.random() * (ground.y - 100), // Spawn anywhere in sky area
                 width: 24,
                 height: 16,
-                speed: currentSpeed * 0.8
+                speed: currentSpeed * 0.8,
+                type: 'bird'
+            });
+        }
+        
+        // Spawn pterodactyls after score 50 (reduced frequency and speed for fairness)
+        if (score > 50 && Math.random() < 0.05) {
+            birds.push({
+                x: canvas.width + 120,
+                y: 30 + Math.random() * (ground.y - 120), // Spawn in sky area
+                width: 36, // Bigger than regular birds
+                height: 24,
+                speed: currentSpeed * 0.7, // Slower for fairness
+                type: 'pterodactyl'
             });
         }
         
@@ -740,8 +1390,9 @@ function spawnObstacle() {
             const pattern = Math.floor(Math.random() * 4);  // 0, 1, 2, or 3
             
             if (pattern === 1) {  // Two obstacles with proper spacing
+                // For multi-obstacle patterns, use normal cacti only (avoid super-difficult combinations)
                 const secondSize = 0.7 + Math.random() * 0.6;
-                const spacing = 80 + Math.random() * 60; // Increased spacing
+                const spacing = 80 + Math.random() * 60;
                 
                 obstacles.push({
                     x: canvas.width + xOffset + minSpacing + spacing,
@@ -749,12 +1400,13 @@ function spawnObstacle() {
                     width: 20 * secondSize,
                     height: 40 * secondSize,
                     size: secondSize,
-                    speed: currentSpeed * (0.9 + Math.random() * 0.2)
+                    speed: currentSpeed * (0.9 + Math.random() * 0.2),
+                    type: 'normal' // Multiple obstacles always use normal cacti
                 });
             } else if (pattern === 2) {  // Three obstacles with gaps
                 for (let i = 1; i <= 2; i++) {
                     const extraSize = 0.7 + Math.random() * 0.6;
-                    const spacing = 100 + Math.random() * 50; // Better spacing
+                    const spacing = 100 + Math.random() * 50;
                     
                     obstacles.push({
                         x: canvas.width + xOffset + minSpacing + (spacing * i),
@@ -762,7 +1414,8 @@ function spawnObstacle() {
                         width: 20 * extraSize,
                         height: 40 * extraSize,
                         size: extraSize,
-                        speed: currentSpeed * (0.9 + Math.random() * 0.2)
+                        speed: currentSpeed * (0.9 + Math.random() * 0.2),
+                        type: 'normal' // Multiple obstacles always use normal cacti
                     });
                 }
             }
@@ -795,59 +1448,172 @@ function updateFish() {
 
 function updateBirds() {
     for (let i = birds.length - 1; i >= 0; i--) {
-        birds[i].x -= birds[i].speed;
-        if (birds[i].x + birds[i].width < 0) {
+        birds[i].x -= birds[i].speed; // Move right to left (towards dino)
+        if (birds[i].x + birds[i].width < 0) { // Remove when off left side
             birds.splice(i, 1);
-        } else if (checkCollision(dino, birds[i]) && !invincible) {
+        } else if (checkBirdCollision(dino, birds[i]) && !invincible) {
             gameOver();
             return;
         }
     }
 }
 
+function checkBirdCollision(dino, bird) {
+    // Use much smaller hitboxes for fairer bird collision
+    // Make both birds and pterodactyls more forgiving
+    const birdHitboxReduction = bird.type === 'pterodactyl' ? 8 : 6; // pixels to reduce from each side
+    const dinoHitboxReduction = 8; // smaller dino hitbox for much fairer gameplay
+    
+    const birdHitbox = {
+        x: bird.x + birdHitboxReduction,
+        y: bird.y + birdHitboxReduction,
+        width: bird.width - (birdHitboxReduction * 2),
+        height: bird.height - (birdHitboxReduction * 2)
+    };
+    
+    const dinoHitbox = {
+        x: dino.x + dinoHitboxReduction,
+        y: dino.y + dinoHitboxReduction,
+        width: dino.width - (dinoHitboxReduction * 2),
+        height: dino.height - (dinoHitboxReduction * 2)
+    };
+    
+    return dinoHitbox.x < birdHitbox.x + birdHitbox.width &&
+           dinoHitbox.x + dinoHitbox.width > birdHitbox.x &&
+           dinoHitbox.y < birdHitbox.y + birdHitbox.height &&
+           dinoHitbox.y + dinoHitbox.height > birdHitbox.y;
+}
+
+function spawnRockets() {
+    if (score < 5) return; // Start checking after score 5
+    
+    const hundredInterval = Math.floor(score / 100);
+    
+    // Check if we've entered a new 100-point interval
+    if (hundredInterval !== currentHundredInterval) {
+        currentHundredInterval = hundredInterval;
+        rocketSpawnScores = generateRocketSpawnScores(hundredInterval);
+        console.log(`🚀 New 100-point interval: ${hundredInterval * 100}-${(hundredInterval + 1) * 100}. Rockets will spawn at scores:`, rocketSpawnScores);
+    }
+    
+    // Check if current score matches any pending rocket spawn scores
+    for (let i = rocketSpawnScores.length - 1; i >= 0; i--) {
+        const spawnScore = rocketSpawnScores[i];
+        
+        if (score >= spawnScore) {
+            // Spawn rocket at this score
+            const rocketX = canvas.width + Math.random() * 100; // Start off-screen right
+            const rocketY = Math.random() * (canvas.height - 100) + 50; // Anywhere from top to near bottom
+            
+            rockets.push({
+                x: rocketX,
+                y: rocketY,
+                width: 24,
+                height: 32,
+                speed: GAME_SPEED * gameSpeedMultiplier * 0.5, // Move slower than obstacles
+                collected: false,
+                glowPhase: 0 // For animated glow effect
+            });
+            
+            console.log(`🚀 Rocket spawned at score ${score}! Position: (${Math.round(rocketX)}, ${Math.round(rocketY)})`);
+            
+            // Remove this spawn score from the list
+            rocketSpawnScores.splice(i, 1);
+        }
+    }
+}
+
+function updateRockets() {
+    for (let i = rockets.length - 1; i >= 0; i--) {
+        const rocket = rockets[i];
+        
+        // Move rocket left
+        rocket.x -= rocket.speed;
+        
+        // Update glow animation
+        rocket.glowPhase += 0.1;
+        
+        // Remove if off screen
+        if (rocket.x + rocket.width < 0) {
+            rockets.splice(i, 1);
+            continue;
+        }
+        
+        // Check collection
+        if (!rocket.collected && checkRocketCollision(dino, rocket)) {
+            rocket.collected = true;
+            dashCharges++;
+            console.log(`🚀 Rocket collected! Dash charges: ${dashCharges}`);
+            
+            // Remove collected rocket
+            rockets.splice(i, 1);
+        }
+    }
+}
+
+function checkRocketCollision(dino, rocket) {
+    // Generous hitbox for rocket collection
+    const collisionMargin = 8; // pixels
+    
+    return dino.x < rocket.x + rocket.width + collisionMargin &&
+           dino.x + dino.width + collisionMargin > rocket.x &&
+           dino.y < rocket.y + rocket.height + collisionMargin &&
+           dino.y + dino.height + collisionMargin > rocket.y;
+}
+
 function spawnPlatform() {
     const now = Date.now();
     
-    // Platforms appear after level 25 for advanced gameplay
-    if (score > 25 && now - lastPlatformSpawn > (3000 + Math.random() * 3000)) {
+    // Platforms appear after level 20 for platform jumping gameplay - increased frequency
+    if (score > 20 && now - lastPlatformSpawn > (2000 + Math.random() * 2000)) {
         const currentSpeed = GAME_SPEED * gameSpeedMultiplier;
         
-        // More random heights with better variation
+        // More random heights with better variation - multiple levels
         const baseHeights = [
-            ground.y - 50,  // Very low
+            ground.y - 40,  // Very very low
+            ground.y - 55,  // Very low
             ground.y - 70,  // Low 
-            ground.y - 90,  // Medium low
-            ground.y - 110, // Medium
-            ground.y - 130, // Medium high
-            ground.y - 150, // High (still reachable)
+            ground.y - 85,  // Medium low
+            ground.y - 100, // Medium
+            ground.y - 115, // Medium high
+            ground.y - 130, // High
+            ground.y - 145, // Higher
+            ground.y - 160, // Very high (still reachable with triple jump)
         ];
         
         // Add random variation to each height
         const baseHeight = baseHeights[Math.floor(Math.random() * baseHeights.length)];
-        const randomVariation = (Math.random() - 0.5) * 20; // ±10 pixels variation
+        const randomVariation = (Math.random() - 0.5) * 15; // ±7.5 pixels variation
         const finalHeight = baseHeight + randomVariation;
         
-        // Random platform sizes (small, medium, large)
+        // Extended platform sizes for better platform jumping
         const platformSizes = [
-            { width: 40, name: 'small' },   // Small platforms - challenging
-            { width: 60, name: 'medium' },  // Medium platforms - balanced
-            { width: 80, name: 'large' },   // Large platforms - easier
-            { width: 100, name: 'xlarge' }  // Extra large platforms - rare but helpful
+            { width: 40, name: 'small' },    // Small platforms - challenging
+            { width: 60, name: 'medium' },   // Medium platforms - balanced
+            { width: 80, name: 'large' },    // Large platforms - easier
+            { width: 100, name: 'xlarge' },  // Extra large platforms
+            { width: 120, name: 'xxl' },     // XXL platforms - great for hopping
+            { width: 140, name: 'xxxl' }     // XXXL platforms - super platforms
         ];
         
-        // Weighted random selection (medium more common, xlarge less common)
-        const sizeWeights = [25, 40, 30, 5]; // small: 25%, medium: 40%, large: 30%, xlarge: 5%
+        // Weighted random selection - Less small platforms, ensure medium platforms appear
+        const sizeWeights = [5, 20, 25, 25, 15, 10]; // small: 5%, medium: 20%, large: 25%, xlarge: 25%, xxl: 15%, xxxl: 10%
         const random = Math.random() * 100;
         let selectedSize;
         
-        if (random < sizeWeights[0]) {
-            selectedSize = platformSizes[0]; // small
-        } else if (random < sizeWeights[0] + sizeWeights[1]) {
+        // Simplified selection logic to ensure it works correctly
+        let cumulativeWeight = 0;
+        for (let i = 0; i < sizeWeights.length; i++) {
+            cumulativeWeight += sizeWeights[i];
+            if (random < cumulativeWeight) {
+                selectedSize = platformSizes[i];
+                break;
+            }
+        }
+        
+        // Fallback to medium if something goes wrong
+        if (!selectedSize) {
             selectedSize = platformSizes[1]; // medium
-        } else if (random < sizeWeights[0] + sizeWeights[1] + sizeWeights[2]) {
-            selectedSize = platformSizes[2]; // large
-        } else {
-            selectedSize = platformSizes[3]; // xlarge
         }
         
         platforms.push({
@@ -883,7 +1649,8 @@ function updatePlatforms() {
             dino.y = platforms[i].y - dino.height;
             isJumping = false;
             velocityY = 0;
-            canDoubleJump = true; // Reset double jump when landing
+            canDoubleJump = true; // Reset all jumps when landing
+            canTripleJump = false;
             onPlatform = true;
         }
     }
@@ -906,18 +1673,26 @@ function checkPlatformLanding(dino, platform) {
 
 // Boss System Functions
 function shouldSpawnBoss() {
-    // Boss appears at score 75, 150, 225, etc. up to 1000
-    if (score < 75 || score > 1000) return false;
+    // Boss appears at score 50, 100, 150, etc. up to 1000
+    if (score < 50 || score > 1000) return false;
     
     // Check if we've reached a boss milestone
-    const bossScores = [75, 150, 225, 300, 375, 450, 525, 600, 675, 750, 825, 900, 975, 1000];
+    const bossScores = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000];
     return bossScores.includes(score) && score > lastBossScore;
+}
+
+function shouldSpawnGreenGoblin() {
+    // Green Goblin appears at score 75, 150, 225, etc.
+    if (score < 75) return false;
+    
+    // Check if we've reached a Green Goblin milestone (every 75 points)
+    return (score % 75 === 0) && score > lastGreenGoblinScore;
 }
 
 function spawnBoss() {
     if (!bossActive && shouldSpawnBoss()) {
-        // Calculate boss level based on score (every 75 points)
-        bossLevel = Math.floor(score / 75);
+        // Calculate boss level based on score (every 50 points)
+        bossLevel = Math.floor(score / 50);
         
         // Create new boss sprite with current level
         bossSprite = createBossSprite(bossLevel);
@@ -945,7 +1720,47 @@ function spawnBoss() {
         bossShootTime = performance.now() + Math.random() * 2000 + 1000; // Shoot in 1-3 seconds
         lastBossScore = score;
         
+        // 🎵 Play boss music when boss spawns (only if Green Goblin isn't active)
+        if (!greenGoblinActive) {
+            playBossMusic();
+        }
+        
         console.log(`🧌 Boss Level ${bossLevel} spawned! Duration: ${bossDuration/1000}s`);
+    }
+}
+
+function spawnGreenGoblin() {
+    if (!greenGoblinActive && shouldSpawnGreenGoblin()) {
+        // Calculate Green Goblin level based on score (every 75 points)
+        greenGoblinLevel = Math.floor(score / 75);
+        
+        // Green Goblin duration: 20s initially, then +5s each time (20s, 25s, 30s, etc.)
+        const baseDuration = 20000; // 20 seconds
+        const extraDuration = (greenGoblinLevel - 1) * 5000; // +5s per level
+        const goblinDuration = baseDuration + extraDuration;
+        
+        greenGoblin = {
+            x: canvas.width - GREEN_GOBLIN_WIDTH - 20, // Right edge
+            y: 80, // Start in sky
+            width: GREEN_GOBLIN_WIDTH,
+            height: GREEN_GOBLIN_HEIGHT,
+            level: greenGoblinLevel,
+            duration: goblinDuration,
+            spawnTime: Date.now(),
+            baseY: 80, // Base flying height
+            flyOffset: 0 // For up/down movement
+        };
+        
+        greenGoblinActive = true;
+        greenGoblinSpawnTime = performance.now();
+        greenGoblinShootTime = performance.now() + Math.random() * 2000 + 1000; // Shoot in 1-3 seconds
+        lastGreenGoblinScore = score;
+        greenGoblinFlyDirection = 1; // Start flying up
+        
+        // 🎵 Play Green Goblin music (takes priority over regular boss music)
+        playGreenGoblinMusic();
+        
+        console.log(`🧌👹 Green Goblin Level ${greenGoblinLevel} spawned! Duration: ${goblinDuration/1000}s`);
     }
 }
 
@@ -957,6 +1772,10 @@ function updateBoss(currentTime) {
         bossActive = false;
         boss = null;
         console.log('🧌 Boss disappeared!');
+        
+        // 🎵 Stop boss music when boss is defeated
+        stopBossMusic();
+        
         showBossDefeated();
         return;
     }
@@ -1025,6 +1844,141 @@ function shootFireball() {
     console.log('🔥 Boss shot fireball!');
 }
 
+function updateGreenGoblin(currentTime) {
+    if (!greenGoblinActive || !greenGoblin) return;
+    
+    // Check if Green Goblin duration has ended
+    if (currentTime - greenGoblinSpawnTime > greenGoblin.duration) {
+        greenGoblinActive = false;
+        greenGoblin = null;
+        console.log('👹 Green Goblin disappeared!');
+        
+        // 🎵 Stop Green Goblin music when Green Goblin is defeated
+        stopGreenGoblinMusic();
+        
+        showGreenGoblinDefeated();
+        return;
+    }
+    
+    // Green Goblin flying behavior (up and down movement)
+    greenGoblin.flyOffset += greenGoblinFlyDirection * GREEN_GOBLIN_FLY_SPEED;
+    
+    // Change direction when reaching limits
+    if (greenGoblin.flyOffset > 30) {
+        greenGoblinFlyDirection = -1; // Start going down
+    } else if (greenGoblin.flyOffset < -30) {
+        greenGoblinFlyDirection = 1; // Start going up
+    }
+    
+    // Update Green Goblin position
+    greenGoblin.y = greenGoblin.baseY + greenGoblin.flyOffset;
+    
+    // Green Goblin shooting behavior
+    if (currentTime > greenGoblinShootTime) {
+        shootLaser();
+        // Schedule next laser - slower frequency, faster for higher levels
+        const baseInterval = 3500; // 3.5 seconds (was 2.5s)
+        const levelSpeedup = (greenGoblin.level - 1) * 200; // 0.2s faster per level
+        const shootInterval = Math.max(baseInterval - levelSpeedup, 1500); // Minimum 1.5 seconds (was 1s)
+        greenGoblinShootTime = currentTime + Math.random() * shootInterval + 750; // +750ms (was +500ms)
+        console.log('⚡ Green Goblin laser scheduled for:', (greenGoblinShootTime - currentTime)/1000, 'seconds');
+    }
+}
+
+function shootLaser() {
+    if (!greenGoblin) return;
+    
+    // Calculate trajectory toward player
+    const startX = greenGoblin.x - 10;
+    const startY = greenGoblin.y + greenGoblin.height / 2;
+    const targetX = dino.x + dino.width / 2;
+    const targetY = dino.y + dino.height / 2;
+    
+    // Calculate direction
+    const dx = targetX - startX;
+    const dy = targetY - startY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Normalize and apply speed
+    const velocityX = (dx / distance) * LASER_SPEED;
+    const velocityY = (dy / distance) * LASER_SPEED;
+    
+    lasers.push({
+        x: startX,
+        y: startY,
+        width: LASER_WIDTH,
+        height: LASER_HEIGHT,
+        velocityX: velocityX,
+        velocityY: velocityY,
+        rotation: Math.atan2(dy, dx) // Angle for proper laser orientation
+    });
+    
+    console.log('⚡ Green Goblin shot laser!');
+}
+
+function updateLasers() {
+    for (let i = lasers.length - 1; i >= 0; i--) {
+        const laser = lasers[i];
+        
+        // Move laser
+        laser.x += laser.velocityX;
+        laser.y += laser.velocityY;
+        
+        // Remove if off screen
+        if (laser.x < -50 || laser.x > canvas.width + 50 || 
+            laser.y < -50 || laser.y > canvas.height + 50) {
+            lasers.splice(i, 1);
+            continue;
+        }
+        
+        // Check collision with player using precise laser collision
+        if (checkLaserCollision(dino, laser) && !invincible) {
+            console.log('⚡💥 Player hit by laser!');
+            gameOver();
+            return;
+        }
+    }
+}
+
+function checkLaserCollision(dino, laser) {
+    // Use smaller hitboxes for laser collision (similar to fireball but for longer projectile)
+    const laserHitboxReduction = 4; // pixels to reduce from each side
+    const dinoHitboxReduction = 6; // slightly smaller dino hitbox for fairer gameplay
+    
+    const laserHitbox = {
+        x: laser.x + laserHitboxReduction,
+        y: laser.y + laserHitboxReduction,
+        width: laser.width - (laserHitboxReduction * 2),
+        height: laser.height - (laserHitboxReduction * 2)
+    };
+    
+    const dinoHitbox = {
+        x: dino.x + dinoHitboxReduction,
+        y: dino.y + dinoHitboxReduction,
+        width: dino.width - (dinoHitboxReduction * 2),
+        height: dino.height - (dinoHitboxReduction * 2)
+    };
+    
+    return dinoHitbox.x < laserHitbox.x + laserHitbox.width &&
+           dinoHitbox.x + dinoHitbox.width > laserHitbox.x &&
+           dinoHitbox.y < laserHitbox.y + laserHitbox.height &&
+           dinoHitbox.y + dinoHitbox.height > laserHitbox.y;
+}
+
+function showGreenGoblinDefeated() {
+    const greenGoblinDefeatedText = document.getElementById('greenGoblinDefeated');
+    
+    // Show the Green Goblin defeated message
+    greenGoblinDefeatedText.classList.add('visible');
+    
+    // Hide it after 2 seconds
+    setTimeout(() => {
+        greenGoblinDefeatedText.classList.remove('visible');
+    }, 2000);
+    
+    console.log('✅ Green Goblin defeated message shown!');
+}
+
 function updateFireballs() {
     for (let i = fireballs.length - 1; i >= 0; i--) {
         const fireball = fireballs[i];
@@ -1041,8 +1995,8 @@ function updateFireballs() {
             continue;
         }
         
-        // Check collision with player
-        if (checkCollision(dino, fireball) && !invincible) {
+        // Check collision with player using precise fireball collision
+        if (checkFireballCollision(dino, fireball) && !invincible) {
             console.log('💥 Player hit by fireball!');
             gameOver();
             return;
@@ -1068,6 +2022,14 @@ function gameOver() {
     isGameOver = true;
     gameStarted = false; // Reset this so start screen can be shown again
     pauseMusic(); // Use new music system
+    
+    // 🎵 Stop boss/Green Goblin music if it's playing when game ends
+    stopBossMusic();
+    stopGreenGoblinMusic();
+    
+    // CRITICAL FIX: Set high score screen active flag immediately
+    highScoreScreenActive = true;
+    console.log('🛡️ High score screen protection activated');
     
     // Hide original game over elements
     const gameOverText = document.getElementById('gameOver');
@@ -1372,6 +2334,10 @@ function showStartScreen() {
     const startScreen = document.getElementById('startScreen');
     const gameContainer = document.getElementById('gameContainer');
     
+    // CRITICAL FIX: Clear high score screen protection when returning to menu
+    highScoreScreenActive = false;
+    console.log('🛡️ High score screen protection cleared - returning to menu');
+    
     // Stop music when returning to menu
     pauseMusic();
     
@@ -1524,6 +2490,10 @@ function startGame() {
     lastTapTime = 0; // Reset touch timing
     console.log('✅ Touch system refreshed for new game');
     
+    // CRITICAL FIX: Clear high score screen protection when starting new game
+    highScoreScreenActive = false;
+    console.log('🛡️ High score screen protection deactivated - new game starting');
+    
     // Reset game state
     score = 0;
     obstacles.length = 0;
@@ -1534,6 +2504,7 @@ function startGame() {
     dino.y = ground.y - dino.height;
     isJumping = false;
     canDoubleJump = false;
+    canTripleJump = false;
     velocityY = 0;
     lastObstacleSpawn = Date.now();
     lastPlatformSpawn = Date.now();
@@ -1552,10 +2523,30 @@ function startGame() {
     fireballs.length = 0;
     lastBossScore = 0;
     
+    // Reset Green Goblin system
+    greenGoblin = null;
+    greenGoblinActive = false;
+    greenGoblinLevel = 1;
+    greenGoblinFlyDirection = 1;
+    lasers.length = 0;
+    lastGreenGoblinScore = 0;
+    
+    // Reset dash system
+    dashCharges = 0;
+    isDashing = false;
+    dashTimer = 0;
+    dashCooldown = 0;
+    rockets.length = 0;
+    currentHundredInterval = -1;
+    rocketSpawnScores = [];
+    
+    // 🎵 Stop any boss/Green Goblin music when starting new game
+    stopBossMusic();
+    stopGreenGoblinMusic();
+    
     // Initialize game elements if needed
     if (stars.length === 0) initStars();
     if (clouds.length === 0) initClouds();
-    if (fish.length === 0) initFish();
     if (hills.length === 0) initHills();
     
     // Hide game over UI
@@ -1615,7 +2606,7 @@ function startGame() {
 let lastUpdateTime = 0;
 
 function update(currentTime) {
-    if (isGameOver || !gameStarted) return;
+    if (isGameOver || !gameStarted || highScoreScreenActive) return;
 
     // Calculate proper delta time
     const deltaTime = currentTime - lastUpdateTime;
@@ -1623,6 +2614,9 @@ function update(currentTime) {
 
     // Update invincibility first (with proper delta time)
     updateInvincibility(deltaTime);
+    
+    // Update dash system
+    updateDash(deltaTime);
 
     // Update animation frame based on time
     if (currentTime - lastFrameTime > ANIMATION_SPEED) {
@@ -1638,31 +2632,57 @@ function update(currentTime) {
         if (dino.y >= ground.y - dino.height) {
             dino.y = ground.y - dino.height;
             isJumping = false;
+            canDoubleJump = true; // Reset all jumps when landing on ground
+            canTripleJump = false;
+        }
+    }
+    
+    // Apply dash movement
+    if (isDashing) {
+        dino.x += DASH_SPEED;
+        // Keep dino within screen bounds during dash
+        if (dino.x > canvas.width - dino.width - 50) {
+            dino.x = canvas.width - dino.width - 50;
+        }
+    } else {
+        // Return dino to normal position gradually when not dashing
+        if (dino.x > 100) {
+            dino.x = Math.max(100, dino.x - 2); // Gradually return to start position
         }
     }
 
     // Update clouds
     updateClouds();
 
-    // Update fish
-    updateFish();
+    // Fish removed - no longer needed
 
     // Update birds
     updateBirds();
 
     // Update platforms
     updatePlatforms();
+    
+    // Update rockets
+    updateRockets();
 
     // Spawn new obstacles
     spawnObstacle();
     
-    // Spawn platforms (after score 25)
+    // Spawn platforms (after score 20)
     spawnPlatform();
+    
+    // Spawn rocket power-ups
+    spawnRockets();
     
     // Boss system
     spawnBoss();
     updateBoss(currentTime);
     updateFireballs();
+    
+    // Green Goblin system
+    spawnGreenGoblin();
+    updateGreenGoblin(currentTime);
+    updateLasers();
 
     // Update obstacles with individual speeds
     for (let i = obstacles.length - 1; i >= 0; i--) {
@@ -1677,11 +2697,126 @@ function update(currentTime) {
     }
 }
 
-function checkCollision(rect1, rect2) {
-    return rect1.x < rect2.x + rect2.width &&
-           rect1.x + rect1.width > rect2.x &&
-           rect1.y < rect2.y + rect2.height &&
-           rect1.y + rect1.height > rect2.y;
+function checkCollision(dino, obstacle) {
+    // Cactus-type specific collision detection for accurate hitboxes
+    const dinoHitboxReduction = 6; // slightly smaller dino hitbox for fairer gameplay
+    
+    const dinoHitbox = {
+        x: dino.x + dinoHitboxReduction,
+        y: dino.y + dinoHitboxReduction,
+        width: dino.width - (dinoHitboxReduction * 2),
+        height: dino.height - (dinoHitboxReduction * 2)
+    };
+    
+    // Different hitbox logic based on cactus type
+    if (obstacle.type === 'xxl') {
+        // XXL Cactus: Check collision with main trunk + arms separately for accuracy
+        // Main trunk area (center thick part)
+        const trunkHitbox = {
+            x: obstacle.x + (obstacle.width * 0.35), // 35% from left (main trunk area)
+            y: obstacle.y + 2,
+            width: obstacle.width * 0.3, // 30% of width (thick trunk)
+            height: obstacle.height - 4
+        };
+        
+        // Left arm area (extends to left edge)
+        const leftArmHitbox = {
+            x: obstacle.x + 2, // Small margin from absolute edge
+            y: obstacle.y + (obstacle.height * 0.25), // Arms are in middle area
+            width: obstacle.width * 0.2, // 20% of width
+            height: obstacle.height * 0.5 // Arms cover middle 50% of height
+        };
+        
+        // Right arm area (extends to right edge)
+        const rightArmHitbox = {
+            x: obstacle.x + (obstacle.width * 0.8), // 80% from left
+            y: obstacle.y + (obstacle.height * 0.25),
+            width: obstacle.width * 0.18, // 18% of width (small margin from edge)
+            height: obstacle.height * 0.5
+        };
+        
+        // Check collision with any of the three areas
+        return checkBoxCollision(dinoHitbox, trunkHitbox) ||
+               checkBoxCollision(dinoHitbox, leftArmHitbox) ||
+               checkBoxCollision(dinoHitbox, rightArmHitbox);
+               
+    } else if (obstacle.type === 'xl') {
+        // XL Cactus: Check main trunk + arms
+        // Main trunk
+        const trunkHitbox = {
+            x: obstacle.x + (obstacle.width * 0.33), // 33% from left
+            y: obstacle.y + 2,
+            width: obstacle.width * 0.34, // 34% of width (trunk)
+            height: obstacle.height - 4
+        };
+        
+        // Left arm
+        const leftArmHitbox = {
+            x: obstacle.x + 3, // Small margin
+            y: obstacle.y + (obstacle.height * 0.3), // Arms in lower area
+            width: obstacle.width * 0.15, // 15% of width
+            height: obstacle.height * 0.4 // Arms cover 40% of height
+        };
+        
+        // Right arm
+        const rightArmHitbox = {
+            x: obstacle.x + (obstacle.width * 0.82), // 82% from left
+            y: obstacle.y + (obstacle.height * 0.35),
+            width: obstacle.width * 0.15, // 15% of width
+            height: obstacle.height * 0.35
+        };
+        
+        return checkBoxCollision(dinoHitbox, trunkHitbox) ||
+               checkBoxCollision(dinoHitbox, leftArmHitbox) ||
+               checkBoxCollision(dinoHitbox, rightArmHitbox);
+               
+    } else {
+        // Normal cactus: Use traditional method with appropriate reduction
+        const obstacleHitboxReduction = 4; // pixels to reduce from each side
+        
+        const obstacleHitbox = {
+            x: obstacle.x + obstacleHitboxReduction,
+            y: obstacle.y + obstacleHitboxReduction,
+            width: obstacle.width - (obstacleHitboxReduction * 2),
+            height: obstacle.height - (obstacleHitboxReduction * 2)
+        };
+        
+        return checkBoxCollision(dinoHitbox, obstacleHitbox);
+    }
+}
+
+// Helper function for box collision detection
+function checkBoxCollision(box1, box2) {
+    return box1.x < box2.x + box2.width &&
+           box1.x + box1.width > box2.x &&
+           box1.y < box2.y + box2.height &&
+           box1.y + box1.height > box2.y;
+}
+
+function checkFireballCollision(dino, fireball) {
+    // Use smaller hitbox for more precise fireball collision
+    // Reduce fireball hitbox by 30% on all sides to match visual size better
+    const fireballHitboxReduction = 3; // pixels to reduce from each side
+    const dinoHitboxReduction = 5; // slightly smaller dino hitbox for fairer gameplay
+    
+    const fireballHitbox = {
+        x: fireball.x + fireballHitboxReduction,
+        y: fireball.y + fireballHitboxReduction,
+        width: fireball.width - (fireballHitboxReduction * 2),
+        height: fireball.height - (fireballHitboxReduction * 2)
+    };
+    
+    const dinoHitbox = {
+        x: dino.x + dinoHitboxReduction,
+        y: dino.y + dinoHitboxReduction,
+        width: dino.width - (dinoHitboxReduction * 2),
+        height: dino.height - (dinoHitboxReduction * 2)
+    };
+    
+    return dinoHitbox.x < fireballHitbox.x + fireballHitbox.width &&
+           dinoHitbox.x + dinoHitbox.width > fireballHitbox.x &&
+           dinoHitbox.y < fireballHitbox.y + fireballHitbox.height &&
+           dinoHitbox.y + dinoHitbox.height > fireballHitbox.y;
 }
 
 function draw() {
@@ -1731,24 +2866,22 @@ function draw() {
         ctx.globalAlpha = 1.0;
     });
 
-    // Draw ground
-    ctx.fillStyle = '#5D4037';  // Darker brown for night theme
+    // Draw simple ground with two layers
+    // Bottom layer - brown earth
+    ctx.fillStyle = '#5D4037';  // Brown ground
     ctx.fillRect(0, ground.y, canvas.width, ground.height);
     
-    // Add ground texture
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    for (let x = 0; x < canvas.width; x += 15) {
-        const height = 2 + Math.random() * 3;
-        ctx.fillRect(x, ground.y, 2, height);
-    }
+    // Top layer - green grass (straight line across top)
+    ctx.fillStyle = '#1B5E20';  // Darker green grass
+    ctx.fillRect(0, ground.y, canvas.width, 8);
 
-    // Enhanced underwater environment with more visible effects
-    const underwaterGradient = ctx.createLinearGradient(0, ground.y + ground.height, 0, canvas.height);
-    underwaterGradient.addColorStop(0, 'rgba(30, 58, 87, 0.9)');      // Ocean blue transition
-    underwaterGradient.addColorStop(0.3, 'rgba(20, 40, 67, 0.95)');   // Deeper ocean blue
-    underwaterGradient.addColorStop(0.7, 'rgba(15, 28, 47, 0.98)');   // Deep ocean
-    underwaterGradient.addColorStop(1, 'rgba(10, 18, 32, 1)');        // Ocean depths
-    ctx.fillStyle = underwaterGradient;
+    // Underground environment - brown earth
+    const undergroundGradient = ctx.createLinearGradient(0, ground.y + ground.height, 0, canvas.height);
+    undergroundGradient.addColorStop(0, 'rgba(101, 67, 33, 0.9)');      // Brown transition
+    undergroundGradient.addColorStop(0.3, 'rgba(62, 39, 35, 0.95)');    // Deeper brown
+    undergroundGradient.addColorStop(0.7, 'rgba(33, 30, 16, 0.98)');    // Deep earth
+    undergroundGradient.addColorStop(1, 'rgba(20, 18, 10, 1)');         // Underground depths
+    ctx.fillStyle = undergroundGradient;
     ctx.fillRect(0, ground.y + ground.height, canvas.width, canvas.height - (ground.y + ground.height));
 
     // Enhanced underwater bubbles and sparkles - much more visible
@@ -1785,21 +2918,48 @@ function draw() {
         ctx.fillRect(x, ground.y + ground.height + waveHeight + 25, 25, 2);
     }
 
-    // Draw fish
-    fish.forEach(f => {
-        ctx.save();
-        if (f.flipX) {
-            ctx.scale(-1, 1);
-            ctx.drawImage(fishSprite, -f.x - 20, f.y + Math.sin(f.animFrame) * 2, 20, 12);
-        } else {
-            ctx.drawImage(fishSprite, f.x, f.y + Math.sin(f.animFrame) * 2, 20, 12);
-        }
-        ctx.restore();
-    });
+    // Fish removed - they looked like leaves on ground
 
-    // Draw dino with enhanced invincibility effect
+    // Draw dino with special effects
     const currentDinoSprite = isJumping ? dinoJump : (dinoFrame === 1 ? dinoRun1 : dinoRun2);
-    if (invincible) {
+    
+    if (isDashing) {
+        // Dash effects - speed lines and rocket trail
+        ctx.save();
+        
+        // Speed lines behind dino
+        ctx.strokeStyle = 'rgba(255, 165, 0, 0.6)';
+        ctx.lineWidth = 3;
+        for (let i = 0; i < 5; i++) {
+            const lineX = dino.x - (i * 15) - 10;
+            const lineY = dino.y + dino.height/2 + (Math.random() - 0.5) * dino.height;
+            ctx.beginPath();
+            ctx.moveTo(lineX, lineY);
+            ctx.lineTo(lineX - 20, lineY);
+            ctx.stroke();
+        }
+        
+        // Rocket trail effect
+        ctx.fillStyle = 'rgba(255, 100, 0, 0.4)';
+        for (let i = 0; i < 8; i++) {
+            const trailX = dino.x - i * 3;
+            const trailY = dino.y + dino.height + (Math.random() - 0.5) * 8;
+            ctx.beginPath();
+            ctx.arc(trailX, trailY, 3 - i * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.restore();
+        
+        // Dino with dash glow
+        ctx.save();
+        ctx.filter = 'brightness(1.5) saturate(1.5)';
+        ctx.shadowColor = '#FFA500';
+        ctx.shadowBlur = 10;
+        ctx.drawImage(currentDinoSprite, dino.x, dino.y, dino.width, dino.height);
+        ctx.restore();
+        
+    } else if (invincible) {
         // Multiple layers of effects for dramatic visibility
         ctx.save();
         
@@ -1840,22 +3000,29 @@ function draw() {
         ctx.restore();
         
     } else {
+        // Normal dino
         ctx.drawImage(currentDinoSprite, dino.x, dino.y, dino.width, dino.height);
     }
 
-    // Draw obstacles
+    // Draw obstacles with correct cactus sprites
     for (const obstacle of obstacles) {
-        ctx.drawImage(cactus, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        const cactusSprite = cactusSprites[obstacle.type] || cactusSprites.normal;
+        ctx.drawImage(cactusSprite, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
     }
 
-    // Draw birds
+    // Draw birds and pterodactyls
     for (const bird of birds) {
-        ctx.drawImage(birdSprite, bird.x, bird.y, bird.width, bird.height);
+        if (bird.type === 'pterodactyl') {
+            ctx.drawImage(pterodactylSprite, bird.x, bird.y, bird.width, bird.height);
+        } else {
+            ctx.drawImage(birdSprite, bird.x, bird.y, bird.width, bird.height);
+        }
     }
 
-    // Draw platforms
+    // Draw platforms with correct sprites
     for (const platform of platforms) {
-        ctx.drawImage(platformSprite, platform.x, platform.y, platform.width, platform.height);
+        const sprite = platformSprites[platform.size] || platformSprites.medium;
+        ctx.drawImage(sprite, platform.x, platform.y, platform.width, platform.height);
     }
 
     // Draw boss
@@ -1899,6 +3066,64 @@ function draw() {
         ctx.restore();
     }
 
+    // Draw Green Goblin
+    if (greenGoblinActive && greenGoblin) {
+        // Flip Green Goblin horizontally to face the player
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(greenGoblinSprite, -(greenGoblin.x + greenGoblin.width), greenGoblin.y, greenGoblin.width, greenGoblin.height);
+        ctx.restore();
+        
+        // Green Goblin health/timer indicator
+        const timeLeft = Math.max(0, greenGoblin.duration - (performance.now() - greenGoblinSpawnTime));
+        const healthBarWidth = 60;
+        const healthBarHeight = 4;
+        const healthX = greenGoblin.x;
+        const healthY = greenGoblin.y - 10;
+        
+        // Health bar background
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+        ctx.fillRect(healthX, healthY, healthBarWidth, healthBarHeight);
+        
+        // Health bar fill
+        const healthPercent = timeLeft / greenGoblin.duration;
+        ctx.fillStyle = healthPercent > 0.5 ? '#00FF00' : '#FFFF00';
+        ctx.fillRect(healthX, healthY, healthBarWidth * healthPercent, healthBarHeight);
+        
+        // Green Goblin level indicator
+        ctx.fillStyle = '#00FF00';
+        ctx.font = '8px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText(`GOBLIN LV${greenGoblin.level}`, greenGoblin.x + greenGoblin.width/2, greenGoblin.y - 15);
+        ctx.textAlign = 'left';
+    }
+
+    // Draw lasers
+    for (const laser of lasers) {
+        ctx.save();
+        ctx.translate(laser.x + laser.width/2, laser.y + laser.height/2);
+        ctx.rotate(laser.rotation);
+        ctx.drawImage(laserSprite, -laser.width/2, -laser.height/2, laser.width, laser.height);
+        ctx.restore();
+    }
+
+    // Draw rocket power-ups
+    for (const rocket of rockets) {
+        if (!rocket.collected) {
+            ctx.save();
+            
+            // Animated glow effect
+            const glowIntensity = Math.sin(rocket.glowPhase) * 0.3 + 0.7;
+            ctx.globalAlpha = glowIntensity;
+            
+            // Add slight floating animation
+            const floatOffset = Math.sin(rocket.glowPhase * 2) * 2;
+            
+            ctx.drawImage(rocketSprite, rocket.x, rocket.y + floatOffset, rocket.width, rocket.height);
+            ctx.restore();
+        }
+    }
+
     // Draw score
     ctx.fillStyle = '#FFF';  // White text for night theme
     ctx.font = '12px "Press Start 2P"';
@@ -1907,8 +3132,31 @@ function draw() {
     const scoreText = `Score: ${score.toString().padStart(3, '0')}`;
     ctx.fillText(scoreText, canvas.width - 20, 15);
     
-    // Boss warning/indicator
-    if (bossActive && boss) {
+    // Rocket counter removed - user doesn't want it
+    
+    // Boss and Green Goblin warning/indicator
+    if (greenGoblinActive && greenGoblin) {
+        // Green Goblin takes priority in display
+        ctx.font = '10px "Press Start 2P"';
+        ctx.fillStyle = '#00FF00';
+        ctx.textAlign = 'center';
+        const goblinText = `👹 GREEN GOBLIN BATTLE! Level ${greenGoblin.level}`;
+        ctx.fillText(goblinText, canvas.width / 2, 30);
+        
+        // Green Goblin timer
+        const timeLeft = Math.max(0, greenGoblin.duration - (performance.now() - greenGoblinSpawnTime));
+        const secondsLeft = Math.ceil(timeLeft / 1000);
+        ctx.font = '8px "Press Start 2P"';
+        ctx.fillStyle = '#66FF66';
+        ctx.fillText(`Time: ${secondsLeft}s`, canvas.width / 2, 45);
+        
+        // Show regular boss info below if both are active
+        if (bossActive && boss) {
+            ctx.fillStyle = '#FF4500';
+            ctx.fillText(`+ Boss LV${boss.level}`, canvas.width / 2, 60);
+        }
+        ctx.textAlign = 'left';
+    } else if (bossActive && boss) {
         ctx.font = '10px "Press Start 2P"';
         ctx.fillStyle = '#FF4500';
         ctx.textAlign = 'center';
@@ -1923,15 +3171,30 @@ function draw() {
         ctx.fillText(`Time: ${secondsLeft}s`, canvas.width / 2, 45);
         ctx.textAlign = 'left';
     } else {
-        // Show warning when approaching boss score (every 75 points)
-        const nextBossScore = Math.ceil(score / 75) * 75;
-        if (nextBossScore >= 75 && nextBossScore <= 1000 && (nextBossScore - score) <= 10 && (nextBossScore - score) > 0) {
+        // Show warnings for upcoming bosses
+        const nextBossScore = Math.ceil(score / 50) * 50;
+        const nextGoblinScore = Math.ceil(score / 75) * 75; // Updated for 75-point intervals
+        
+        let warningY = 30;
+        
+        // Boss warning
+        if (nextBossScore >= 50 && nextBossScore <= 1000 && (nextBossScore - score) <= 10 && (nextBossScore - score) > 0) {
             ctx.font = '8px "Press Start 2P"';
             ctx.fillStyle = 'rgba(255, 69, 0, 0.8)';
             ctx.textAlign = 'center';
-            ctx.fillText(`⚠️ Boss incoming in ${nextBossScore - score}!`, canvas.width / 2, 30);
-            ctx.textAlign = 'left';
+            ctx.fillText(`⚠️ Boss incoming in ${nextBossScore - score}!`, canvas.width / 2, warningY);
+            warningY += 15;
         }
+        
+        // Green Goblin warning  
+        if (nextGoblinScore >= 75 && (nextGoblinScore - score) <= 10 && (nextGoblinScore - score) > 0) {
+            ctx.font = '8px "Press Start 2P"';
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+            ctx.textAlign = 'center';
+            ctx.fillText(`👹 Green Goblin incoming in ${nextGoblinScore - score}!`, canvas.width / 2, warningY);
+        }
+        
+        ctx.textAlign = 'left';
     }
     
     ctx.textAlign = 'left';
@@ -1941,7 +3204,8 @@ function draw() {
 let gameLoopId = null;
 
 function gameLoop(currentTime) {
-    if (gameStarted) {
+    // CRITICAL FIX: Don't run game loop when high score screen is active
+    if (gameStarted && !highScoreScreenActive) {
         update(currentTime);
         draw();
     }
@@ -1992,11 +3256,53 @@ function handleKeyDown(event) {
         } else {
             jump();
         }
+    } else if (event.code === 'KeyD') {
+        event.preventDefault(); // Prevent any default behavior
+        activateDash();
+    } else if (event.code === 'KeyS') {
+        // Shield/invincibility activation
+        if (getAvailableInvincibilityCharges() > 0) {
+            activateInvincibility();
+        }
+    } else if (event.code === 'KeyT') {
+        // Toggle dev invincibility
+        if (invincible) {
+            // Turn off
+            invincible = false;
+            invincibilityTimer = 0;
+            console.log('🧪 DEV: Invincibility turned OFF');
+        } else {
+            // Turn on
+            invincible = true;
+            invincibilityTimer = 999999999; // Very long time
+            console.log('🧪 DEV: Invincibility turned ON (indefinite)');
+        }
+        updateDevTestButtonState();
     }
 }
 
 // Handle touch events
 function handleTouch(event) {
+    // CRITICAL FIX: Block ALL touches when high score screen is active
+    if (highScoreScreenActive) {
+        console.log('🛡️ Touch blocked - high score screen is active!');
+        const target = event.target;
+        const targetId = target ? target.id : '';
+        
+        // Only allow touches on high score screen buttons
+        if (targetId === 'submitHighScore' || targetId === 'skipHighScore' || 
+            targetId === 'playAgainBtn' || targetId === 'mainMenuBtn' || 
+            targetId === 'shareScoreBtn' || targetId === 'closeLeaderboard' ||
+            target?.closest('#highScoreScreen')) {
+            console.log('✅ Allowing touch on high score screen button:', targetId);
+            return; // Allow the button to handle it
+        }
+        
+        event.preventDefault();
+        event.stopPropagation();
+        return; // Block everything else
+    }
+    
     // Check if touch is on UI buttons or interactive elements FIRST
     const target = event.target;
     const targetId = target ? target.id : '';
@@ -2007,7 +3313,8 @@ function handleTouch(event) {
         targetClass: targetClass,
         tagName: target?.tagName,
         gameStarted: gameStarted,
-        isGameOver: isGameOver
+        isGameOver: isGameOver,
+        highScoreScreenActive: highScoreScreenActive
     });
     
     // If touch is on any button, modal, or interactive element, don't handle it here
@@ -2020,6 +3327,7 @@ function handleTouch(event) {
             target.tagName === 'INPUT' ||
             target.tagName === 'A' ||
             targetId === 'invincibilityButton' ||
+            targetId === 'devTestButton' ||
             targetId === 'playGameBtn' ||
             targetId === 'viewHighscoresBtn' ||
             targetId === 'musicToggleBtn' ||
@@ -2114,9 +3422,9 @@ function handleTouch(event) {
     } else {
         const tapLength = now - lastTapTime;
         console.log(`⏱️ Tap timing: ${tapLength}ms since last tap`);
-        if (tapLength < 300 && canDoubleJump) {  // 300ms window for double tap
-            console.log('🚀 Double tap detected - double jumping');
-            doubleJump();
+        if (tapLength < 300) {  // 300ms window for multi-tap
+            console.log('🚀 Multi-tap detected - attempting additional jump');
+            jump(); // Just use the main jump function, it handles all jump logic
         } else {
             console.log('👆 Regular tap - single jumping');
             jump();
@@ -2130,6 +3438,34 @@ window.startGame = startGame;
 window.showStartScreen = showStartScreen;
 window.hideStartScreen = hideStartScreen;
 window.playMusic = playMusic;
+
+// CRITICAL FIX: Expose function to clear high score screen protection
+window.clearHighScoreProtection = function() {
+    highScoreScreenActive = false;
+    console.log('🛡️ High score screen protection cleared by external call');
+};
+
+// DEV TEST: Functions to hide/show test button for production
+window.hideDevButton = function() {
+    const devBtn = document.getElementById('devTestButton');
+    if (devBtn) {
+        devBtn.style.display = 'none';
+        console.log('🧪 DEV TEST button hidden');
+    }
+};
+
+window.showDevButton = function() {
+    const devBtn = document.getElementById('devTestButton');
+    if (devBtn) {
+        devBtn.style.display = 'flex';
+        console.log('🧪 DEV TEST button shown');
+    }
+};
+
+window.activateTestMode = function() {
+    toggleDevTestInvincibility();
+    console.log('🧪 Test mode toggled via console!');
+};
 
 // Initialize game elements but don't start the game yet
 initStars();
@@ -2221,13 +3557,92 @@ document.addEventListener('DOMContentLoaded', () => {
     
     setInterval(updateInvBtn, 100); // Keep UI in sync more frequently
     updateInvBtn();
+    
+    // Initialize dash button
+    const dashBtn = document.getElementById('dashButton');
+    
+    function updateDashBtn() {
+        const charges = getDashCharges();
+        dashBtn.setAttribute('data-charges', charges > 0 ? `x${charges}` : '');
+        dashBtn.disabled = (!canDash() || isGameOver);
+        dashBtn.style.opacity = isDashing ? 0.6 : 0.95;
+    }
+    
+    // Prevent button from triggering jump
+    dashBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+    
+    dashBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!dashBtn.disabled) {
+            activateDash();
+            updateDashBtn();
+        }
+    });
+    
+    dashBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!dashBtn.disabled) {
+            activateDash();
+            updateDashBtn();
+        }
+    });
+    
+    setInterval(updateDashBtn, 100); // Keep UI in sync
+    updateDashBtn();
+    
+    // Initialize DEV TEST button
+    const devTestBtn = document.getElementById('devTestButton');
+    
+    if (devTestBtn) {
+        // Prevent button from triggering jump
+        devTestBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        
+        devTestBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleDevTestInvincibility();
+            console.log('🧪 DEV TEST button touched - invincibility toggled!');
+        });
+        
+        devTestBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleDevTestInvincibility();
+            console.log('🧪 DEV TEST button clicked - invincibility toggled!');
+        });
+        
+        console.log('🧪 DEV TEST button initialized');
+        
+        // Set initial button state
+        updateDevTestButtonState();
+    }
 });
 
 // Fix the keyboard shortcut
 window.addEventListener('keydown', (e) => {
-    if (e.code === 'KeyV' && !isGameOver && !invincible && getAvailableInvincibilityCharges() > 0) {
+    if (e.code === 'KeyS' && !isGameOver && !invincible && getAvailableInvincibilityCharges() > 0) {
         e.preventDefault();
         activateInvincibility();
+    }
+    
+    if (e.code === 'KeyD' && !isGameOver && canDash()) {
+        e.preventDefault();
+        activateDash();
+    }
+    
+    // DEV TEST: Press 'T' to toggle invincibility
+    if (e.code === 'KeyT' && !isGameOver) {
+        e.preventDefault();
+        toggleDevTestInvincibility();
+        console.log('🧪 DEV TEST: T key pressed - invincibility toggled!');
     }
 });
 

@@ -9,7 +9,7 @@ A Google Chrome dinosaur game clone built for learning purposes. The game featur
 - Game over and restart functionality
 - Mobile-friendly controls (tap to jump)
 - Desktop controls (spacebar to jump)
-- Double jump capability
+- Triple jump capability
 
 ## Planned Enhancements
 

@@ -7,7 +7,7 @@ A beautiful endless runner game featuring a cute alien dinosaur! Jump over obsta
 ### 🎯 Core Gameplay
 - **Smooth running animation** with cute dinosaur sprites
 - **Progressive difficulty** - speed increases as you score
-- **Double jump mechanics** for advanced players
+- **Triple jump mechanics** for advanced players
 - **Flying birds** appear after level 20 for extra challenge
 - **Animated water background** with swimming fish
 - **Mobile-friendly** with touch controls
@@ -43,11 +43,11 @@ A beautiful endless runner game featuring a cute alien dinosaur! Jump over obsta
 ## 🎮 How to Play
 
 - **Space Bar** or **Tap**: Jump
-- **Double Space/Tap**: Double jump
+- **Multi-Tap**: Triple jump (up to 3 jumps in air!)
 - **Goal**: Avoid obstacles and get the highest score!
 
 ### 🏃‍♂️ Gameplay Tips
-- Use double jump to clear high obstacles or multiple cacti
+- Use triple jump to clear high obstacles, multiple cacti, and reach high platforms
 - Flying birds appear after score 20 - watch the timing!
 - Game speed caps at score 40 to keep it beatable
 - Every obstacle is jumpable with proper timing

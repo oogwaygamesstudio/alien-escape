@@ -41,6 +41,7 @@
 ## 5. Sound Effects 🔊 (Final Phase)
 - [ ] Jump sound
 - [ ] Double jump sound
+- [ ] Triple jump sound
 - [ ] Game over sound
 - [ ] Score milestone sounds
 - [ ] Background music options

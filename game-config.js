@@ -9,6 +9,7 @@ const GAME_CONFIG = {
     GRAVITY: 0.4,
     JUMP_FORCE: -10,
     DOUBLE_JUMP_FORCE: -8,
+    TRIPLE_JUMP_FORCE: -6,
     GAME_SPEED: 2,
     
     // Sprite dimensions

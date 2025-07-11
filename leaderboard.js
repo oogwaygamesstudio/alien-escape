@@ -271,6 +271,11 @@ class Leaderboard {
     hideHighScoreScreen() {
         const highScoreScreen = document.getElementById('highScoreScreen');
         
+        // CRITICAL FIX: Clear high score screen protection immediately
+        if (window.clearHighScoreProtection) {
+            window.clearHighScoreProtection();
+        }
+        
         // Trigger smooth exit animation
         highScoreScreen.classList.remove('show');
         

@@ -137,24 +137,49 @@
         /* Boss Defeated Text */
         #bossDefeated {
             position: absolute;
-            top: 20px; /* Position at top like boss warnings */
+            top: 20px; /* Position at top */
             left: 50%;
             transform: translateX(-50%) scale(0);
             font-family: 'Press Start 2P', cursive;
-            font-size: 16px; /* Smaller size so it doesn't block gameplay */
+            font-size: 20px; /* Bigger size for better readability */
             color: #4CAF50;
             opacity: 0;
             transition: all 0.3s;
             text-shadow: 
-                -1px -1px 0 #fff,
-                1px -1px 0 #fff,
-                -1px 1px 0 #fff,
-                1px 1px 0 #fff,
-                2px 2px 0 #000;
+                -2px -2px 0 #fff,
+                2px -2px 0 #fff,
+                -2px 2px 0 #fff,
+                2px 2px 0 #fff,
+                3px 3px 0 #000;
             pointer-events: none;
             z-index: 1500;
         }
         #bossDefeated.visible {
+            transform: translateX(-50%) scale(1);
+            opacity: 1;
+        }
+        
+        /* Green Goblin Defeated Text */
+        #greenGoblinDefeated {
+            position: absolute;
+            top: 50px; /* Position below boss defeated text to avoid overlap */
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            font-family: 'Press Start 2P', cursive;
+            font-size: 20px; /* Bigger size for better readability */
+            color: #00FF00; /* Bright green for Green Goblin */
+            opacity: 0;
+            transition: all 0.3s;
+            text-shadow: 
+                -2px -2px 0 #fff,
+                2px -2px 0 #fff,
+                -2px 2px 0 #fff,
+                2px 2px 0 #fff,
+                3px 3px 0 #000;
+            pointer-events: none;
+            z-index: 1500;
+        }
+        #greenGoblinDefeated.visible {
             transform: translateX(-50%) scale(1);
             opacity: 1;
         }
@@ -954,15 +979,15 @@
         }
         #invincibilityButton.powerup-btn {
             position: absolute;
-            bottom: 8vh;
-            left: 5vw;
-            width: 48px;
-            height: 48px;
+            bottom: 18vh;
+            left: 4vw;
+            width: 64px;
+            height: 64px;
             border-radius: 50%;
             background: linear-gradient(135deg, gold, orange 60%, #fff 100%);
             border: 3px solid #fff;
             box-shadow: 0 2px 8px 1px rgba(255,215,0,0.4), 0 0 0 3px #FFD70044;
-            font-size: 22px;
+            font-size: 28px;
             color: #fff;
             cursor: pointer;
             z-index: 1200;
@@ -992,15 +1017,120 @@
         #invincibilityButton.powerup-btn::after {
             content: attr(data-charges);
             position: absolute;
-            bottom: -14px;
+            bottom: -18px;
             right: 50%;
             transform: translateX(50%);
-            font-size: 10px;
+            font-size: 12px;
             color: #FFD700;
             text-shadow: 1px 1px 2px #000, 0 0 4px #fff;
             font-family: 'Press Start 2P', cursive;
             pointer-events: none;
         }
+        
+        /* Dash Button - Mobile dash control */
+        #dashButton.powerup-btn {
+            position: absolute;
+            bottom: 18vh;
+            left: 14vw; /* Next to shield button */
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FF6B35, #FF9800 60%, #fff 100%);
+            border: 3px solid #fff;
+            box-shadow: 0 2px 8px 1px rgba(255,107,53,0.4), 0 0 0 3px #FF6B3544;
+            font-size: 28px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 1200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s;
+            outline: none;
+            opacity: 0.95;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        #dashButton.powerup-btn:focus {
+            outline: none;
+        }
+        #dashButton.powerup-btn:active {
+            transform: scale(0.9);
+        }
+        #dashButton.powerup-btn[disabled] {
+            background: #666;
+            color: #999;
+            opacity: 0.4;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        #dashButton.powerup-btn::after {
+            content: attr(data-charges);
+            position: absolute;
+            bottom: -18px;
+            right: 50%;
+            transform: translateX(50%);
+            font-size: 12px;
+            color: #FF6B35;
+            text-shadow: 1px 1px 2px #000, 0 0 4px #fff;
+            font-family: 'Press Start 2P', cursive;
+            pointer-events: none;
+        }
+        
+        /* DEV TEST Button - For testing purposes only */
+        #devTestButton.dev-test-btn {
+            position: absolute;
+            bottom: 6vh; /* Moved up above other buttons */
+            left: 4vw; /* Aligned with shield button */
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FF1744, #E91E63 60%, #fff 100%);
+            border: 3px solid #fff;
+            box-shadow: 0 2px 8px 1px rgba(255,23,68,0.4), 0 0 0 3px #FF174444;
+            font-size: 20px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 1200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s;
+            outline: none;
+            opacity: 0.95;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        #devTestButton.dev-test-btn:focus {
+            outline: none;
+        }
+        #devTestButton.dev-test-btn:active {
+            transform: scale(0.9);
+        }
+        #devTestButton.dev-test-btn[disabled] {
+            background: #666;
+            color: #999;
+            opacity: 0.4;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        #devTestButton.dev-test-btn::after {
+            content: "TEST";
+            position: absolute;
+            bottom: -14px;
+            right: 50%;
+            transform: translateX(50%);
+            font-size: 8px;
+            color: #FF1744;
+            text-shadow: 1px 1px 2px #000, 0 0 4px #fff;
+            font-family: 'Press Start 2P', cursive;
+            pointer-events: none;
+        }
+        
+        /* Hide DEV button in production - uncomment next line to hide */
+        /* #devTestButton { display: none !important; } */
         
                 /* In-game music button removed - only menu button now */
         
@@ -1296,9 +1426,10 @@
                 <canvas id="previewCanvas"></canvas>
                 <div id="previewOverlay">
                     <div class="preview-instructions">
-                        <div>⚡ Double-tap for DOUBLE JUMP</div>
-                        <div>🛡️ V or SHIELD button for INVINCIBILITY</div>
-                        <div>🎯 Avoid obstacles and defeat bosses!</div>
+                        <div>⚡ Multi-tap for <span style="color: #FFD700; font-weight: bold; text-shadow: 2px 2px 0 #FF6B35;">TRIPLE JUMP</span></div>
+                        <div>🛡️ S key or SHIELD button for INVINCIBILITY</div>
+                        <div>🚀 D key or DASH button to DASH FORWARD</div>
+                        <div>🎯 Collect rockets for dash charges!</div>
                     </div>
                 </div>
             </div>
@@ -1322,16 +1453,19 @@
             <!-- Footer -->
             <div id="startScreenFooter">
                 <div>Made by Mohsin</div>
-                <div class="version">v1.36</div>
+                <div class="version">v1.37</div>
             </div>
         </div>
     </div>
 
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
-        <button id="invincibilityButton" class="powerup-btn" title="Invincibility (V)">🛡️</button>
+        <button id="invincibilityButton" class="powerup-btn" title="Invincibility (S)">🛡️</button>
+        <button id="dashButton" class="powerup-btn" title="Dash Forward (D)">🚀</button>
+        <button id="devTestButton" class="dev-test-btn" title="DEV: Toggle Invincibility (T)">🧪</button>
         <div id="gameOver">GAME OVER!</div>
         <div id="bossDefeated">SUAR DEFEATED!</div>
+        <div id="greenGoblinDefeated">GREEN GOBLIN DEFEATED!</div>
         <button id="restartButton">RESTART</button>
     </div>
     
