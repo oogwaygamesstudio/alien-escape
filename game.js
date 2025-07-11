@@ -72,6 +72,26 @@ const DASH_SPEED = 12; // pixels per frame
 const DASH_COOLDOWN = 1000; // ms between dashes
 const ROCKETS_PER_HUNDRED = { min: 4, max: 6 }; // 4-6 rockets per 100 score
 
+// Secret code system for dev testing
+let secretCodeBuffer = '';
+const SECRET_CODE = 'cat9999';
+
+function handleSecretCode(key) {
+    secretCodeBuffer += key.toLowerCase();
+    
+    // Keep only the last 7 characters (length of SECRET_CODE)
+    if (secretCodeBuffer.length > SECRET_CODE.length) {
+        secretCodeBuffer = secretCodeBuffer.slice(-SECRET_CODE.length);
+    }
+    
+    // Check if the secret code was entered
+    if (secretCodeBuffer === SECRET_CODE) {
+        toggleDevTestInvincibility();
+        console.log('🐱 Secret code activated! Invincibility toggled!');
+        secretCodeBuffer = ''; // Reset buffer
+    }
+}
+
 function generateRocketSpawnScores(hundredInterval) {
     // Generate 4-6 random scores spread across the 100-point range
     const startScore = hundredInterval * 100;
@@ -123,22 +143,7 @@ function toggleDevTestInvincibility() {
     updateDevTestButtonState();
 }
 
-function updateDevTestButtonState() {
-    const devBtn = document.getElementById('devTestButton');
-    if (devBtn) {
-        if (invincible) {
-            // Show as active/on
-            devBtn.style.background = 'linear-gradient(135deg, #4CAF50, #81C784 60%, #fff 100%)';
-            devBtn.style.boxShadow = '0 2px 8px 1px rgba(76,175,80,0.4), 0 0 0 3px #4CAF5044';
-            devBtn.title = 'DEV: Invincibility ON - Click to turn OFF';
-        } else {
-            // Show as inactive/off  
-            devBtn.style.background = 'linear-gradient(135deg, #FF1744, #E91E63 60%, #fff 100%)';
-            devBtn.style.boxShadow = '0 2px 8px 1px rgba(255,23,68,0.4), 0 0 0 3px #FF174444';
-            devBtn.title = 'DEV: Invincibility OFF - Click to turn ON';
-        }
-    }
-}
+// Dev test button removed - using secret code system instead
 
 function updateInvincibility(deltaTime) {
     if (invincible) {
@@ -1451,7 +1456,7 @@ function updateBirds() {
         birds[i].x -= birds[i].speed; // Move right to left (towards dino)
         if (birds[i].x + birds[i].width < 0) { // Remove when off left side
             birds.splice(i, 1);
-        } else if (checkBirdCollision(dino, birds[i]) && !invincible) {
+        } else if (checkBirdCollision(dino, birds[i]) && !invincible && !isDashing) {
             gameOver();
             return;
         }
@@ -1932,7 +1937,7 @@ function updateLasers() {
         }
         
         // Check collision with player using precise laser collision
-        if (checkLaserCollision(dino, laser) && !invincible) {
+        if (checkLaserCollision(dino, laser) && !invincible && !isDashing) {
             console.log('⚡💥 Player hit by laser!');
             gameOver();
             return;
@@ -1996,7 +2001,7 @@ function updateFireballs() {
         }
         
         // Check collision with player using precise fireball collision
-        if (checkFireballCollision(dino, fireball) && !invincible) {
+        if (checkFireballCollision(dino, fireball) && !invincible && !isDashing) {
             console.log('💥 Player hit by fireball!');
             gameOver();
             return;
@@ -2540,6 +2545,9 @@ function startGame() {
     currentHundredInterval = -1;
     rocketSpawnScores = [];
     
+    // Reset secret code buffer
+    secretCodeBuffer = '';
+    
     // 🎵 Stop any boss/Green Goblin music when starting new game
     stopBossMusic();
     stopGreenGoblinMusic();
@@ -2690,7 +2698,7 @@ function update(currentTime) {
         if (obstacles[i].x + obstacles[i].width < 0) {
             obstacles.splice(i, 1);
             score++;
-        } else if (checkCollision(dino, obstacles[i]) && !invincible) {
+        } else if (checkCollision(dino, obstacles[i]) && !invincible && !isDashing) {
             gameOver();
             return;
         }
@@ -3239,9 +3247,14 @@ function handleKeyDown(event) {
         activeElement.contentEditable === 'true'
     );
     
-    // Don't handle game controls if user is typing
+    // Don't handle game controls if user is typing in input fields
     if (isInputFocused) {
         return;
+    }
+    
+    // Handle secret code for any letter/number key during gameplay
+    if (gameStarted && !isGameOver && event.key.match(/^[a-zA-Z0-9]$/)) {
+        handleSecretCode(event.key);
     }
     
     if (event.code === 'Space') {
@@ -3264,20 +3277,6 @@ function handleKeyDown(event) {
         if (getAvailableInvincibilityCharges() > 0) {
             activateInvincibility();
         }
-    } else if (event.code === 'KeyT') {
-        // Toggle dev invincibility
-        if (invincible) {
-            // Turn off
-            invincible = false;
-            invincibilityTimer = 0;
-            console.log('🧪 DEV: Invincibility turned OFF');
-        } else {
-            // Turn on
-            invincible = true;
-            invincibilityTimer = 999999999; // Very long time
-            console.log('🧪 DEV: Invincibility turned ON (indefinite)');
-        }
-        updateDevTestButtonState();
     }
 }
 
@@ -3445,26 +3444,10 @@ window.clearHighScoreProtection = function() {
     console.log('🛡️ High score screen protection cleared by external call');
 };
 
-// DEV TEST: Functions to hide/show test button for production
-window.hideDevButton = function() {
-    const devBtn = document.getElementById('devTestButton');
-    if (devBtn) {
-        devBtn.style.display = 'none';
-        console.log('🧪 DEV TEST button hidden');
-    }
-};
-
-window.showDevButton = function() {
-    const devBtn = document.getElementById('devTestButton');
-    if (devBtn) {
-        devBtn.style.display = 'flex';
-        console.log('🧪 DEV TEST button shown');
-    }
-};
-
+// Secret dev testing: Type "cat9999" during gameplay to toggle 5-hour invincibility
 window.activateTestMode = function() {
     toggleDevTestInvincibility();
-    console.log('🧪 Test mode toggled via console!');
+    console.log('🐱 Test mode toggled via console!');
 };
 
 // Initialize game elements but don't start the game yet
@@ -3594,39 +3577,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     setInterval(updateDashBtn, 100); // Keep UI in sync
     updateDashBtn();
-    
-    // Initialize DEV TEST button
-    const devTestBtn = document.getElementById('devTestButton');
-    
-    if (devTestBtn) {
-        // Prevent button from triggering jump
-        devTestBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-        
-        devTestBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleDevTestInvincibility();
-            console.log('🧪 DEV TEST button touched - invincibility toggled!');
-        });
-        
-        devTestBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleDevTestInvincibility();
-            console.log('🧪 DEV TEST button clicked - invincibility toggled!');
-        });
-        
-        console.log('🧪 DEV TEST button initialized');
-        
-        // Set initial button state
-        updateDevTestButtonState();
-    }
 });
 
-// Fix the keyboard shortcut
+// Additional keyboard shortcuts
 window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyS' && !isGameOver && !invincible && getAvailableInvincibilityCharges() > 0) {
         e.preventDefault();
@@ -3636,13 +3589,6 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyD' && !isGameOver && canDash()) {
         e.preventDefault();
         activateDash();
-    }
-    
-    // DEV TEST: Press 'T' to toggle invincibility
-    if (e.code === 'KeyT' && !isGameOver) {
-        e.preventDefault();
-        toggleDevTestInvincibility();
-        console.log('🧪 DEV TEST: T key pressed - invincibility toggled!');
     }
 });
 
