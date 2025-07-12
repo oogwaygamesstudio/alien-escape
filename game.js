@@ -2981,10 +2981,8 @@ function update(currentTime) {
         obstacles[i].x -= obstacles[i].speed;
         if (obstacles[i].x + obstacles[i].width < 0) {
             obstacles.splice(i, 1);
-            // Cap score at ending score
-            if (score < ENDING_SCORE) {
-                score++;
-            }
+            // Continue scoring normally - no cap
+            score++;
         } else if (checkCollision(dino, obstacles[i]) && !invincible && !isDashing) {
             const cactusType = obstacles[i].type || 'cactus';
             attemptDeath(cactusType);
