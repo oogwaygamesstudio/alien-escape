@@ -1831,13 +1831,13 @@ function updatePlatforms() {
     
     // If dino is not on any platform and not jumping, check if should fall
     if (!onPlatform && !isJumping && dino.y < ground.y - dino.height) {
-        isJumping = true; // Start falling
+        // DON'T set isJumping = true when falling off platform
+        // This allows jump() to treat the first jump as a real first jump
         isFalling = true; // This is natural falling, not an active jump
         velocityY = 0; // Start falling from rest
-        // CRITICAL FIX: When falling off platform, give player full jump count
-        // as if they're doing their first jump - this allows double/triple jump in air
-        canDoubleJump = true; // Allow double jump
-        canTripleJump = false; // Triple jump becomes available after double jump
+        // Reset jump states - player has full 3 jumps available
+        canDoubleJump = false; // Will be set to true after first jump
+        canTripleJump = false; // Will be set to true after second jump
     }
 }
 
