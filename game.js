@@ -61,7 +61,7 @@ let invincible = false;
 let invincibilityTimer = 0;
 let invincibilityChargesUsed = 0;
 const INVINCIBILITY_DURATION = 3000; // ms
-const INVINCIBILITY_SCORE_STEP = 50; // 1 charge per 50 score
+const INVINCIBILITY_SCORE_STEP = 100; // 1 charge per 100 score
 
 function getAvailableInvincibilityCharges() {
     return Math.floor(score / INVINCIBILITY_SCORE_STEP) - invincibilityChargesUsed;
