@@ -129,6 +129,27 @@ function activateInvincibility() {
     console.log('🔢 Charges remaining:', getAvailableInvincibilityCharges());
 }
 
+// Auto-shield function - activates shield automatically when player is about to die
+function tryAutoShield() {
+    // Check if we can auto-activate shield
+    if (!invincible && !isDashing && getAvailableInvincibilityCharges() > 0 && !isGameOver) {
+        console.log('🛡️ AUTO-SHIELD! Saved from death');
+        activateInvincibility();
+        return true; // Shield activated successfully
+    }
+    return false; // No shield available or already active
+}
+
+// Smart death function - tries auto-shield first, then calls gameOver if it fails
+function attemptDeath(cause) {
+    if (tryAutoShield()) {
+        // Auto-shield activated, player is saved!
+        return;
+    }
+    // No shield available, player dies
+    gameOver(cause);
+}
+
 // DEV TEST: Toggle invincibility for testing
 function toggleDevTestInvincibility() {
     if (isGameOver) return;
@@ -1586,7 +1607,7 @@ function updateBirds() {
             birds.splice(i, 1);
         } else if (checkBirdCollision(dino, birds[i]) && !invincible && !isDashing) {
             const birdType = birds[i].type === 'pterodactyl' ? 'pterodactyl' : 'bird';
-            gameOver(birdType);
+            attemptDeath(birdType);
             return;
         }
     }
@@ -1831,35 +1852,48 @@ function checkPlatformTouch(dino, platform) {
 
 // Boss System Functions
 function shouldSpawnBoss() {
-    // Boss appears at score 50, 100, 150, etc. up to 1000
-    if (score < 50 || score > 1000) return false;
-    
-    // Check if we've reached a boss milestone
-    const bossScores = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000];
+    // Boss appears at specific scores only: 50, 200, 350, 450
+    const bossScores = [50, 200, 350, 450];
     return bossScores.includes(score) && score > lastBossScore;
 }
 
 function shouldSpawnGreenGoblin() {
-    // Green Goblin appears at score 75, 150, 225, etc.
-    if (score < 75) return false;
-    
-    // Check if we've reached a Green Goblin milestone (every 75 points)
-    return (score % 75 === 0) && score > lastGreenGoblinScore;
+    // Green Goblin appears at specific scores only: 150, 450
+    const goblinScores = [150, 450];
+    return goblinScores.includes(score) && score > lastGreenGoblinScore;
 }
 
 function spawnBoss() {
     if (score >= ENDING_SCORE) return; // Stop spawning in ending sequence
     if (!bossActive && shouldSpawnBoss()) {
-        // Calculate boss level based on score (every 50 points)
-        bossLevel = Math.floor(score / 50);
+        // Set boss level and duration based on specific score
+        let bossDuration;
+        let bossLevel;
+        
+        switch (score) {
+            case 50:
+                bossLevel = 1;
+                bossDuration = 15000; // 15 seconds
+                break;
+            case 200:
+                bossLevel = 2;
+                bossDuration = 20000; // 20 seconds
+                break;
+            case 350:
+                bossLevel = 3;
+                bossDuration = 22000; // 22 seconds
+                break;
+            case 450:
+                bossLevel = 4;
+                bossDuration = 17000; // 17 seconds
+                break;
+            default:
+                bossLevel = 1;
+                bossDuration = 15000; // fallback
+        }
         
         // Create new boss sprite with current level
         bossSprite = createBossSprite(bossLevel);
-        
-        // Boss duration: 15s + 5s for each level above 1
-        const baseDuration = 15000; // 15 seconds
-        const extraDuration = (bossLevel - 1) * 5000; // +5s per level
-        const bossDuration = baseDuration + extraDuration;
         
         boss = {
             x: canvas.width - BOSS_WIDTH - 20, // Right edge
@@ -1884,27 +1918,37 @@ function spawnBoss() {
             playBossMusic();
         }
         
-        // Boss spawned
+        console.log(`🧌 Boss spawned at level ${score} for ${bossDuration/1000} seconds`);
     }
 }
 
 function spawnGreenGoblin() {
     if (score >= ENDING_SCORE) return; // Stop spawning in ending sequence
     if (!greenGoblinActive && shouldSpawnGreenGoblin()) {
-        // Calculate Green Goblin level based on score (every 75 points)
-        greenGoblinLevel = Math.floor(score / 75);
+        // Set Green Goblin level and duration based on specific score
+        let goblinDuration;
+        let goblinLevel;
         
-        // Green Goblin duration: 20s initially, then +5s each time (20s, 25s, 30s, etc.)
-        const baseDuration = 20000; // 20 seconds
-        const extraDuration = (greenGoblinLevel - 1) * 5000; // +5s per level
-        const goblinDuration = baseDuration + extraDuration;
+        switch (score) {
+            case 150:
+                goblinLevel = 1;
+                goblinDuration = 15000; // 15 seconds
+                break;
+            case 450:
+                goblinLevel = 2;
+                goblinDuration = 17000; // 17 seconds
+                break;
+            default:
+                goblinLevel = 1;
+                goblinDuration = 15000; // fallback
+        }
         
         greenGoblin = {
             x: canvas.width - GREEN_GOBLIN_WIDTH - 20, // Right edge
             y: 80, // Start in sky
             width: GREEN_GOBLIN_WIDTH,
             height: GREEN_GOBLIN_HEIGHT,
-            level: greenGoblinLevel,
+            level: goblinLevel,
             duration: goblinDuration,
             spawnTime: Date.now(),
             baseY: 80, // Base flying height
@@ -1920,7 +1964,7 @@ function spawnGreenGoblin() {
         // 🎵 Play Green Goblin music (takes priority over regular boss music)
         playGreenGoblinMusic();
         
-        // Green Goblin spawned
+        console.log(`👹 Green Goblin spawned at level ${score} for ${goblinDuration/1000} seconds`);
     }
 }
 
@@ -2084,7 +2128,7 @@ function updateLasers() {
         
         // Check collision with player using precise laser collision
         if (checkLaserCollision(dino, laser) && !invincible && !isDashing) {
-            gameOver('green_goblin_laser');
+            attemptDeath('green_goblin_laser');
             return;
         }
     }
@@ -2145,7 +2189,7 @@ function updateFireballs() {
         
         // Check collision with player using precise fireball collision
         if (checkFireballCollision(dino, fireball) && !invincible && !isDashing) {
-            gameOver('boss_fireball');
+            attemptDeath('boss_fireball');
             return;
         }
     }
@@ -2943,7 +2987,7 @@ function update(currentTime) {
             }
         } else if (checkCollision(dino, obstacles[i]) && !invincible && !isDashing) {
             const cactusType = obstacles[i].type || 'cactus';
-            gameOver(cactusType);
+            attemptDeath(cactusType);
             return;
         }
     }
@@ -3600,14 +3644,15 @@ function draw() {
         ctx.fillText(`Time: ${secondsLeft}s`, canvas.width / 2, 45);
         ctx.textAlign = 'left';
     } else {
-        // Show warnings for upcoming bosses
-        const nextBossScore = Math.ceil(score / 50) * 50;
-        const nextGoblinScore = Math.ceil(score / 75) * 75; // Updated for 75-point intervals
+        // Show warnings for upcoming bosses at specific scores
+        const bossScores = [50, 200, 350, 450];
+        const goblinScores = [150, 450];
         
         let warningY = 30;
         
-        // Boss warning
-        if (nextBossScore >= 50 && nextBossScore <= 1000 && (nextBossScore - score) <= 10 && (nextBossScore - score) > 0) {
+        // Find next boss score
+        const nextBossScore = bossScores.find(bossScore => bossScore > score);
+        if (nextBossScore && (nextBossScore - score) <= 10 && (nextBossScore - score) > 0) {
             ctx.font = '8px "Press Start 2P"';
             ctx.fillStyle = 'rgba(255, 69, 0, 0.8)';
             ctx.textAlign = 'center';
@@ -3615,8 +3660,9 @@ function draw() {
             warningY += 15;
         }
         
-        // Green Goblin warning  
-        if (nextGoblinScore >= 75 && (nextGoblinScore - score) <= 10 && (nextGoblinScore - score) > 0) {
+        // Find next Green Goblin score
+        const nextGoblinScore = goblinScores.find(goblinScore => goblinScore > score);
+        if (nextGoblinScore && (nextGoblinScore - score) <= 10 && (nextGoblinScore - score) > 0) {
             ctx.font = '8px "Press Start 2P"';
             ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
             ctx.textAlign = 'center';
