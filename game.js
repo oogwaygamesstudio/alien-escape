@@ -301,7 +301,7 @@ let musicStarted = false;
 let musicEnabled = true;
 
 // Jump Counter Display System
-let jumpCounterEnabled = true; // Default to enabled
+let jumpCounterEnabled = false; // Default to disabled
 
 // 🎵 Boss Music System - Separate from main music
 let bossAudio = null;
@@ -549,7 +549,7 @@ function toggleJumpCounter() {
     jumpCounterEnabled = !jumpCounterEnabled;
     
     // Store preference in localStorage
-    localStorage.setItem('jumpCounterEnabled', jumpCounterEnabled.toString());
+    localStorage.setItem('jumpCounterEnabled_v2', jumpCounterEnabled.toString());
     
     console.log('🔢 Jump Counter ' + (jumpCounterEnabled ? 'enabled' : 'disabled'));
     
@@ -4133,7 +4133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         musicEnabled = savedMusicEnabled === 'true';
     }
     
-    const savedJumpCounterEnabled = localStorage.getItem('jumpCounterEnabled');
+    const savedJumpCounterEnabled = localStorage.getItem('jumpCounterEnabled_v2');
     if (savedJumpCounterEnabled !== null) {
         jumpCounterEnabled = savedJumpCounterEnabled === 'true';
     }
