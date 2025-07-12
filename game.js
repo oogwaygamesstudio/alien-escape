@@ -1421,8 +1421,8 @@ function initHills() {
 // Game functions
 function jump() {
     if (!isGameOver) {
-        if (!isJumping) {
-            // First jump from ground or platform
+        if (!isJumping || isFalling) {
+            // First jump from ground, platform, OR while falling naturally
             isJumping = true;
             isFalling = false; // This is an active jump, not falling
             canDoubleJump = true;
@@ -1831,8 +1831,7 @@ function updatePlatforms() {
     
     // If dino is not on any platform and not jumping, check if should fall
     if (!onPlatform && !isJumping && dino.y < ground.y - dino.height) {
-        // DON'T set isJumping = true when falling off platform
-        // This allows jump() to treat the first jump as a real first jump
+        isJumping = true; // MUST set this for gravity to work
         isFalling = true; // This is natural falling, not an active jump
         velocityY = 0; // Start falling from rest
         // Reset jump states - player has full 3 jumps available
