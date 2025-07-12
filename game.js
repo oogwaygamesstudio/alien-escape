@@ -1885,7 +1885,7 @@ function spawnBoss() {
                 break;
             case 450:
                 bossLevel = 4;
-                bossDuration = 17000; // 17 seconds
+                bossDuration = 45000; // 45 seconds
                 break;
             default:
                 bossLevel = 1;
@@ -1936,7 +1936,7 @@ function spawnGreenGoblin() {
                 break;
             case 450:
                 goblinLevel = 2;
-                goblinDuration = 17000; // 17 seconds
+                goblinDuration = 45000; // 45 seconds
                 break;
             default:
                 goblinLevel = 1;
