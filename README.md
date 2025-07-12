@@ -158,7 +158,7 @@ Open source - feel free to use, modify, and share!
 
 ## 🎮 Credits
 
-**Game by**: Mohsin  
+**Game by**: Oogway Games Studio  
 **Leaderboard System**: Firebase + Custom JavaScript  
 **Graphics**: HTML5 Canvas procedural generation  
 **Inspiration**: Classic Chrome Dino game with modern features
