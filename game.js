@@ -273,6 +273,9 @@ let endingPhase = 'none'; // 'none', 'clearing_screen', 'waiting', 'oogway_appea
 let endingStartTime = 0;
 let oogway = null;
 
+// Special score 499 "last scare" tracking
+let lastScareSpawned = false;
+
 // Get canvas and context
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -1510,10 +1513,28 @@ function spawnObstacle() {
         
         // Special cactus spawned silently
         
-        // Spawn birds after score 20 (reduced frequency for fairness)
-        if (score > 20 && Math.random() < 0.10) {
+        // Progressive difficulty system for birds and pterodactyls
+        let birdSpawnChance = 0.10; // Base 10% chance after score 20
+        let pterodactylSpawnChance = 0.05; // Base 5% chance after score 50
+        
+        // Increase difficulty at score milestones (toned down for better balance)
+        if (score >= 200) {
+            birdSpawnChance += 0.03; // 13% chance
+            pterodactylSpawnChance += 0.02; // 7% chance
+        }
+        if (score >= 300) {
+            birdSpawnChance += 0.03; // 16% chance
+            pterodactylSpawnChance += 0.02; // 9% chance
+        }
+        if (score >= 400) {
+            birdSpawnChance += 0.03; // 19% chance
+            pterodactylSpawnChance += 0.03; // 12% chance
+        }
+        
+        // Spawn birds after score 20 with progressive difficulty
+        if (score > 20 && Math.random() < birdSpawnChance) {
             birds.push({
-                x: canvas.width + 100,
+                x: canvas.width + 100 + Math.random() * 50, // Add some randomness
                 y: 20 + Math.random() * (ground.y - 100), // Spawn anywhere in sky area
                 width: 24,
                 height: 16,
@@ -1522,10 +1543,10 @@ function spawnObstacle() {
             });
         }
         
-        // Spawn pterodactyls after score 50 (reduced frequency and speed for fairness)
-        if (score > 50 && Math.random() < 0.05) {
+        // Spawn pterodactyls after score 50 with progressive difficulty
+        if (score > 50 && Math.random() < pterodactylSpawnChance) {
             birds.push({
-                x: canvas.width + 120,
+                x: canvas.width + 120 + Math.random() * 60, // Add some randomness
                 y: 30 + Math.random() * (ground.y - 120), // Spawn in sky area
                 width: 36, // Bigger than regular birds
                 height: 24,
@@ -1534,14 +1555,30 @@ function spawnObstacle() {
             });
         }
         
+
+        
         lastObstacleSpawn = now;
         
-        // Adjusted interval for better spacing
-        OBSTACLE_SPAWN_INTERVAL = MIN_OBSTACLE_SPACING + Math.random() * (MAX_OBSTACLE_SPACING - MIN_OBSTACLE_SPACING);
+        // Adjusted interval for better spacing - gets faster at higher scores
+        let baseInterval = MIN_OBSTACLE_SPACING + Math.random() * (MAX_OBSTACLE_SPACING - MIN_OBSTACLE_SPACING);
         
-        // Spawn multiple obstacles with better spacing
+        // Reduce obstacle spacing for progressive difficulty (toned down)
+        if (score >= 200) baseInterval *= 0.95; // 5% faster spawning
+        if (score >= 300) baseInterval *= 0.95; // 9.75% faster total
+        if (score >= 400) baseInterval *= 0.95; // 14% faster total
+        
+        OBSTACLE_SPAWN_INTERVAL = baseInterval;
+        
+        // Spawn multiple obstacles with better spacing - more complex patterns at higher scores
         if (score > 10) {  // After score 10
-            const pattern = Math.floor(Math.random() * 4);  // 0, 1, 2, or 3
+            let maxPattern = 4; // 0, 1, 2, or 3 patterns
+            
+            // Increase pattern complexity at higher scores (more gradual)
+            if (score >= 250) maxPattern = 5; // Add pattern 4 at 250 instead of 200
+            if (score >= 350) maxPattern = 6; // Add pattern 5 at 350 instead of 300
+            if (score >= 450) maxPattern = 7; // Add pattern 6 at 450 instead of 400
+            
+            const pattern = Math.floor(Math.random() * maxPattern);  // 0 to maxPattern-1
             
             if (pattern === 1) {  // Two obstacles with proper spacing
                 // For multi-obstacle patterns, use normal cacti only (avoid super-difficult combinations)
@@ -1570,6 +1607,52 @@ function spawnObstacle() {
                         size: extraSize,
                         speed: currentSpeed * (0.9 + Math.random() * 0.2),
                         type: 'normal' // Multiple obstacles always use normal cacti
+                    });
+                }
+            } else if (pattern === 3) {  // Three obstacles with better spacing (unlocked at score 250)
+                for (let i = 1; i <= 2; i++) {
+                    const extraSize = 0.7 + Math.random() * 0.4;
+                    const spacing = 100 + Math.random() * 50;
+                    
+                    obstacles.push({
+                        x: canvas.width + xOffset + minSpacing + (spacing * i),
+                        y: ground.y - (40 * extraSize),
+                        width: 20 * extraSize,
+                        height: 40 * extraSize,
+                        size: extraSize,
+                        speed: currentSpeed * (0.9 + Math.random() * 0.2),
+                        type: 'normal'
+                    });
+                }
+            } else if (pattern === 4) {  // Mixed height obstacles (unlocked at score 350)
+                for (let i = 1; i <= 2; i++) {
+                    const extraSize = 0.6 + Math.random() * 0.5;
+                    const spacing = 110 + Math.random() * 40;
+                    const heightVariation = Math.random() * 15 - 7; // ±7 pixels (reduced)
+                    
+                    obstacles.push({
+                        x: canvas.width + xOffset + minSpacing + (spacing * i),
+                        y: ground.y - (40 * extraSize) + heightVariation,
+                        width: 20 * extraSize,
+                        height: 40 * extraSize,
+                        size: extraSize,
+                        speed: currentSpeed * (0.9 + Math.random() * 0.2),
+                        type: 'normal'
+                    });
+                }
+            } else if (pattern === 5) {  // Moderate cluster pattern (unlocked at score 450)
+                for (let i = 1; i <= 3; i++) {
+                    const extraSize = 0.7 + Math.random() * 0.4;
+                    const spacing = 90 + Math.random() * 40;
+                    
+                    obstacles.push({
+                        x: canvas.width + xOffset + minSpacing + (spacing * i),
+                        y: ground.y - (40 * extraSize),
+                        width: 20 * extraSize,
+                        height: 40 * extraSize,
+                        size: extraSize,
+                        speed: currentSpeed * (0.9 + Math.random() * 0.2),
+                        type: 'normal'
                     });
                 }
             }
@@ -2823,6 +2906,9 @@ function startGame() {
     endingStartTime = 0;
     oogway = null;
     
+    // Reset last scare spawned flag
+    lastScareSpawned = false;
+    
     // 🎵 Stop any boss/Green Goblin music when starting new game
     stopBossMusic();
     stopGreenGoblinMusic();
@@ -2968,6 +3054,41 @@ function update(currentTime) {
     spawnGreenGoblin();
     updateGreenGoblin(currentTime);
     updateLasers();
+
+    // Special "last scare" at score 499 - spawn many birds and pterodactyls
+    if (score >= 499 && score < 500 && !lastScareSpawned) {
+        lastScareSpawned = true;
+        
+        const currentSpeed = GAME_SPEED * gameSpeedMultiplier;
+        
+        // Spawn 4-7 birds randomly (reduced from 5-10)
+        const numBirds = Math.floor(Math.random() * 4) + 4; // 4-7 birds
+        for (let i = 0; i < numBirds; i++) {
+            birds.push({
+                x: canvas.width + Math.random() * 400 + 100, // Spread out more
+                y: 20 + Math.random() * (ground.y - 100), // Random heights
+                width: 24,
+                height: 16,
+                speed: currentSpeed * (0.7 + Math.random() * 0.3), // Slightly slower
+                type: 'bird'
+            });
+        }
+        
+        // Spawn 3-5 pterodactyls randomly (reduced from 5-10)
+        const numPterodactyls = Math.floor(Math.random() * 3) + 3; // 3-5 pterodactyls
+        for (let i = 0; i < numPterodactyls; i++) {
+            birds.push({
+                x: canvas.width + Math.random() * 500 + 150, // Spread out more
+                y: 30 + Math.random() * (ground.y - 120), // Random heights
+                width: 36,
+                height: 24,
+                speed: currentSpeed * (0.6 + Math.random() * 0.3), // Slightly slower
+                type: 'pterodactyl'
+            });
+        }
+        
+        console.log(`🦅 LAST SCARE! Spawned ${numBirds} birds and ${numPterodactyls} pterodactyls at score 499!`);
+    }
 
     // Handle ending sequence
     updateEndingSequence(currentTime);
