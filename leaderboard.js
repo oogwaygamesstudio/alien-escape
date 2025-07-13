@@ -25,7 +25,6 @@ try {
     // Initialize with YOUR config (not demo anymore!)
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
-    console.log('🔥 Firebase connected! Global leaderboard is LIVE! 🌍');
     
     // Update connection status
     setTimeout(() => {
@@ -37,8 +36,6 @@ try {
     }, 1000);
     
 } catch (error) {
-    console.warn('⚠️  Firebase not configured - using local storage fallback:', error);
-    console.log('📖 See FIREBASE_SETUP.md for setup instructions');
     // Graceful fallback to local storage only
     db = null;
     
@@ -201,11 +198,9 @@ class Leaderboard {
 
     async checkGlobalHighScore(score) {
         // Always show the high score form so users can save their scores locally
-        console.log('💾 Showing name input form for score submission');
         this.showHighScoreForm();
         
         if (!db) {
-            console.log('Firebase not available, will save to local storage');
             return;
         }
 
@@ -219,14 +214,12 @@ class Leaderboard {
             
             // Check if it's a global high score for display purposes
             if (scores.length < 10 || score > (scores[9]?.score || 0)) {
-                console.log('🎉 Global high score detected!');
                 // Update form title to show it's a global high score
                 const label = document.getElementById('nameInputLabel');
                 if (label) {
                     label.innerHTML = '🏆 GLOBAL HIGH SCORE! 🏆<br>Enter your name for the global leaderboard:';
                 }
             } else {
-                console.log('📝 Regular score - will save locally');
                 // Update form title for local score
                 const label = document.getElementById('nameInputLabel');
                 if (label) {
@@ -234,7 +227,6 @@ class Leaderboard {
                 }
             }
         } catch (error) {
-            console.log('Could not check global scores, will save locally:', error);
             // Update form title for offline mode
             const label = document.getElementById('nameInputLabel');
             if (label) {
@@ -358,7 +350,6 @@ class Leaderboard {
 
         if (!db) {
             // Save to local storage only
-            console.log('Saving score locally (Firebase not available)');
             this.saveScoreLocally(playerName, currentHighScore);
             this.hideNameInput();
             this.showLeaderboard();
@@ -377,7 +368,6 @@ class Leaderboard {
             this.hideNameInput();
             this.showLeaderboard();
         } catch (error) {
-            console.error('Error submitting score:', error);
             // Fallback to local storage
             this.saveScoreLocally(playerName, currentHighScore);
             alert('Saved locally! Check your internet connection for global leaderboard.');
@@ -1020,7 +1010,6 @@ class Leaderboard {
 
         if (!db) {
             // Save to local storage only
-            console.log('Saving score locally (Firebase not available)');
             this.saveScoreLocally(playerName, currentHighScore);
             
             // Show success state
@@ -1077,7 +1066,6 @@ class Leaderboard {
             }, 2000);
 
         } catch (error) {
-            console.error('Error submitting score:', error);
             // Fallback to local storage
             this.saveScoreLocally(playerName, currentHighScore);
             

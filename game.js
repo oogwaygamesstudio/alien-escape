@@ -314,6 +314,41 @@ let bossAudioPlaying = false;
 let greenGoblinAudio = null;
 let greenGoblinAudioPlaying = false;
 
+// Main menu music
+let menuMusic = new Audio('assets/audio/zen-garden.mp3');
+menuMusic.loop = true;
+menuMusic.volume = 0.5;
+
+function playMenuMusic() {
+    menuMusic.currentTime = 0;
+    menuMusic.play();
+}
+
+function stopMenuMusic() {
+    menuMusic.pause();
+    menuMusic.currentTime = 0;
+}
+
+// Play menu music when menu is shown, stop when game starts
+const startScreen = document.getElementById('startScreen');
+if (startScreen) {
+    const observer = new MutationObserver(() => {
+        if (startScreen.style.display !== 'none') {
+            playMenuMusic();
+        } else {
+            stopMenuMusic();
+        }
+    });
+    observer.observe(startScreen, { attributes: true, attributeFilter: ['style'] });
+}
+
+// Also stop menu music when game starts (in startGame)
+const originalStartGame = startGame;
+startGame = function() {
+    stopMenuMusic();
+    originalStartGame.apply(this, arguments);
+};
+
 function initMusic() {
     try {
         console.log('🎵 Initializing Zen Garden music...');
