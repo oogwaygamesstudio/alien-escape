@@ -9,7 +9,6 @@ A beautiful endless runner game featuring a cute alien dinosaur! Jump over obsta
 - **Progressive difficulty** - speed increases as you score
 - **Triple jump mechanics** for advanced players
 - **Flying birds** appear after level 20 for extra challenge
-- **Animated water background** with swimming fish
 - **Mobile-friendly** with touch controls
 
 ### 🏆 Global Leaderboard System
