@@ -307,12 +307,12 @@ let musicEnabled = true;
 let jumpCounterEnabled = false; // Default to disabled
 
 // 🎵 Boss Music System - Separate from main music
-let bossAudio = null;
+let bossAudios = []; // Array to hold all boss audio files
 let bossAudioPlaying = false;
+let currentBossLevel = 1; // Track current boss level for music selection
 
-// 🎵 Green Goblin Music System - Takes priority over regular boss music
-let greenGoblinAudio = null;
-let greenGoblinAudioPlaying = false;
+// Green Goblin music system
+let greenGoblinAudio = null; // Special audio for Green Goblin Level 1
 
 // Main menu music
 let menuMusic = new Audio('assets/audio/zen-garden.mp3');
@@ -351,11 +351,11 @@ startGame = function() {
 
 function initMusic() {
     try {
-        console.log('🎵 Initializing Zen Garden music...');
+
         
         // Create audio element for the zen garden track
         zenAudio = new Audio();
-        zenAudio.volume = 0.2; // Gentle zen volume
+        zenAudio.volume = 0.23; // Gentle zen volume (increased by 15% from 0.2)
         zenAudio.loop = true; // Loop continuously
         
         // Use the local zen garden MP3 file
@@ -372,61 +372,61 @@ function initMusic() {
         
         // Log when music is ready
         zenAudio.addEventListener('canplaythrough', function() {
-            console.log('🎵 Zen Garden music ready to play');
+            // Music ready
         });
         
-        console.log('🎵 Zen Garden music initialized');
 
-        // Initialize boss music
-        console.log('🎵 Initializing Boss music...');
-        bossAudio = new Audio();
-        bossAudio.volume = 0.3; // Boss music volume
-        bossAudio.loop = true; // Loop during boss fights
+
+        // Initialize boss music for all levels
+        bossAudios = [];
         
-        // Use the suarsong.wav file
-        bossAudio.src = 'assets/audio/suarsong.wav';
-        bossAudio.preload = 'auto';
-        
-        // Handle errors gracefully
-        bossAudio.addEventListener('error', function(e) {
-            console.log('🔇 Boss music file not found. Please ensure "suarsong.wav" is in assets/audio/ folder');
-            bossAudio = null;
-        });
-        
-        // Log when boss music is ready
+        // Create audio objects for each boss level (1-4)
+        for (let level = 1; level <= 4; level++) {
+            const bossAudio = new Audio();
+            bossAudio.volume = 0.18; // Boss music volume (reduced by 40% from 0.3)
+            bossAudio.loop = true; // Loop during boss fights
+            bossAudio.src = `assets/audio/boss${level}.mp3`;
+            bossAudio.preload = 'auto';
+            
+            // Handle errors gracefully
+            bossAudio.addEventListener('error', function(e) {
+                console.log(`🔇 Boss level ${level} music file not found. Please ensure "boss${level}.mp3" is in assets/audio/ folder`);
+            });
+            
+                    // Log when boss music is ready
         bossAudio.addEventListener('canplaythrough', function() {
-            console.log('🎵 Boss music ready to play');
+            // Boss music ready
         });
+            
+            bossAudios.push(bossAudio);
+        }
         
-        console.log('🎵 Boss music initialized');
 
-        // Initialize Green Goblin music
-        console.log('🎵 Initializing Green Goblin music...');
+
+        // Initialize Green Goblin Level 1 music
         greenGoblinAudio = new Audio();
-        greenGoblinAudio.volume = 0.4; // Slightly louder for dramatic effect
+        greenGoblinAudio.volume = 0.24; // Green Goblin music volume (reduced by 40% from 0.4)
         greenGoblinAudio.loop = true; // Loop during Green Goblin fights
-        
-        // Use the green goblin audio file
-        greenGoblinAudio.src = 'assets/audio/greengoblin.wav';
+        greenGoblinAudio.src = 'assets/audio/goblin1.mp3';
         greenGoblinAudio.preload = 'auto';
         
         // Handle errors gracefully
         greenGoblinAudio.addEventListener('error', function(e) {
-            console.log('🔇 Green Goblin music file not found. Please ensure "greengoblin.wav" is in assets/audio/ folder');
+            console.log('🔇 Green Goblin Level 1 music file not found. Please ensure "goblin1.mp3" is in assets/audio/ folder');
             greenGoblinAudio = null;
         });
         
         // Log when Green Goblin music is ready
         greenGoblinAudio.addEventListener('canplaythrough', function() {
-            console.log('🎵 Green Goblin music ready to play');
+            // Green Goblin music ready
         });
         
-        console.log('🎵 Green Goblin music initialized');
+
         
     } catch (error) {
         console.log('🔇 Music system not available:', error);
         zenAudio = null;
-        bossAudio = null;
+        bossAudios = [];
         greenGoblinAudio = null;
     }
 }
@@ -455,7 +455,11 @@ function pauseMusic() {
 }
 
 function playBossMusic() {
-    if (!musicEnabled || !bossAudio || bossAudioPlaying) return;
+    if (!musicEnabled || bossAudioPlaying) return;
+    
+    // Get the correct boss audio for current level (array is 0-indexed, so level-1)
+    const bossAudio = bossAudios[currentBossLevel - 1];
+    if (!bossAudio) return;
     
     // Pause main music when boss music starts
     if (zenAudio && musicStarted) {
@@ -464,10 +468,10 @@ function playBossMusic() {
     
     bossAudioPlaying = true;
     
-    bossAudio.play().then(() => {
-        // Boss music started
-    }).catch((error) => {
-        console.log('🔇 Boss music playback failed:', error);
+            bossAudio.play().then(() => {
+            // Boss music started
+        }).catch((error) => {
+            console.log(`🔇 Boss level ${currentBossLevel} music playback failed:`, error);
         bossAudioPlaying = false;
         // Resume main music if boss music fails
         if (musicEnabled && zenAudio && musicStarted) {
@@ -477,15 +481,20 @@ function playBossMusic() {
 }
 
 function stopBossMusic() {
-    if (bossAudio && bossAudioPlaying) {
-        bossAudio.pause();
-        bossAudio.currentTime = 0; // Reset to beginning
+    if (bossAudioPlaying) {
+        // Stop all boss audio files
+        bossAudios.forEach((audio, index) => {
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0; // Reset to beginning
+            }
+        });
         bossAudioPlaying = false;
-        console.log('🎵 Boss music stopped');
+
     }
     
-    // Resume main music after boss music stops (only if Green Goblin isn't playing)
-    if (musicEnabled && zenAudio && musicStarted && gameStarted && !isGameOver && !greenGoblinAudioPlaying) {
+    // Resume main music after boss music stops
+    if (musicEnabled && zenAudio && musicStarted && gameStarted && !isGameOver) {
         zenAudio.play().catch(error => {
             console.log('🔇 Failed to resume zen music:', error);
         });
@@ -493,50 +502,73 @@ function stopBossMusic() {
 }
 
 function playGreenGoblinMusic() {
-    if (!musicEnabled || !greenGoblinAudio || greenGoblinAudioPlaying) return;
+    if (!musicEnabled || bossAudioPlaying) return;
     
-    // Stop all other music when Green Goblin music starts (priority)
+    // Stop all other music when Green Goblin music starts
     if (zenAudio && musicStarted) {
         zenAudio.pause();
     }
-    if (bossAudio && bossAudioPlaying) {
-        bossAudio.pause();
-        bossAudioPlaying = false;
+    
+    // Green Goblin Level 1 (Score 150) uses goblin1.mp3
+    if (greenGoblinLevel === 1) {
+        if (!greenGoblinAudio) return;
+        
+        bossAudioPlaying = true;
+        
+        greenGoblinAudio.play().then(() => {
+            // Green Goblin music started
+        }).catch((error) => {
+            console.log('🔇 Green Goblin Level 1 music playback failed:', error);
+            bossAudioPlaying = false;
+            // Resume main music if Green Goblin music fails
+            if (musicEnabled && zenAudio && musicStarted) {
+                zenAudio.play().catch(e => console.log('Failed to resume zen music:', e));
+            }
+        });
+    } else {
+        // Green Goblin Level 2 (Score 450) uses boss4.mp3 for epic dual boss fight
+        const bossAudio = bossAudios[3]; // boss4.mp3 (index 3)
+        if (!bossAudio) return;
+        
+        bossAudioPlaying = true;
+        
+        bossAudio.play().then(() => {
+            // Green Goblin Level 2 music started
+        }).catch((error) => {
+            console.log('🔇 Green Goblin Level 2 music playback failed:', error);
+            bossAudioPlaying = false;
+            // Resume main music if Green Goblin music fails
+            if (musicEnabled && zenAudio && musicStarted) {
+                zenAudio.play().catch(e => console.log('Failed to resume zen music:', e));
+            }
+        });
     }
-    
-    greenGoblinAudioPlaying = true;
-    
-    greenGoblinAudio.play().then(() => {
-        console.log('🎵 Green Goblin music playing! (Priority music)');
-    }).catch((error) => {
-        console.log('🔇 Green Goblin music playback failed:', error);
-        greenGoblinAudioPlaying = false;
-        // Try to resume other music if Green Goblin fails
-        if (musicEnabled && bossAudio && !greenGoblinAudioPlaying) {
-            playBossMusic();
-        } else if (musicEnabled && zenAudio && musicStarted) {
-            zenAudio.play().catch(e => console.log('Failed to resume zen music:', e));
-        }
-    });
 }
 
 function stopGreenGoblinMusic() {
-    if (greenGoblinAudio && greenGoblinAudioPlaying) {
-        greenGoblinAudio.pause();
-        greenGoblinAudio.currentTime = 0; // Reset to beginning
-        greenGoblinAudioPlaying = false;
-        console.log('🎵 Green Goblin music stopped');
+    if (bossAudioPlaying) {
+        // Stop Green Goblin Level 1 audio
+        if (greenGoblinAudio) {
+            greenGoblinAudio.pause();
+            greenGoblinAudio.currentTime = 0; // Reset to beginning
+        }
+        
+        // Stop all boss audio files (for Level 2)
+        bossAudios.forEach((audio, index) => {
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0; // Reset to beginning
+            }
+        });
+        bossAudioPlaying = false;
+
     }
     
-    // Resume appropriate music after Green Goblin music stops
-    if (musicEnabled && gameStarted && !isGameOver) {
-        if (bossActive && bossAudio) {
-            playBossMusic(); // Resume boss music if boss is still active
-        } else if (zenAudio && musicStarted) {
-            zenAudio.play().catch(error => {
-                console.log('🔇 Failed to resume zen music:', error);
-            });
-        }
+    // Resume main music after Green Goblin music stops
+    if (musicEnabled && zenAudio && musicStarted && gameStarted && !isGameOver) {
+        zenAudio.play().catch(error => {
+            console.log('🔇 Failed to resume zen music:', error);
+        });
     }
 }
 
@@ -545,26 +577,21 @@ function toggleMusic() {
     musicEnabled = !musicEnabled;
     
     if (musicEnabled) {
-        console.log('🎵 Music enabled');
         if (gameStarted && !isGameOver) {
             playMusic(); // Start music if game is running
         }
     } else {
-        console.log('🔇 Music disabled');
         pauseMusic(); // Stop music immediately
     }
     
     updateMusicButtons();
     
     // FIX: Re-ensure touch listener is active after music toggle
-    console.log('🔧 Re-ensuring touch listener after music toggle');
     document.removeEventListener('touchstart', handleTouch);
     document.addEventListener('touchstart', handleTouch);
     
     // Also reset touch timing to prevent any corruption
     lastTapTime = 0;
-    
-    console.log('✅ Touch listener re-added and touch timing reset');
 }
 
 function updateMusicButtons() {
@@ -589,7 +616,7 @@ function toggleJumpCounter() {
     // Store preference in localStorage
     localStorage.setItem('jumpCounterEnabled_v2', jumpCounterEnabled.toString());
     
-    console.log('🔢 Jump Counter ' + (jumpCounterEnabled ? 'enabled' : 'disabled'));
+
     
     // Update button text and icon
     updateJumpCounterButtons();
@@ -2009,6 +2036,9 @@ function spawnBoss() {
                 bossDuration = 15000; // fallback
         }
         
+        // Set current boss level for music selection
+        currentBossLevel = bossLevel;
+        
         // Create new boss sprite with current level
         bossSprite = createBossSprite(bossLevel);
         
@@ -2030,12 +2060,10 @@ function spawnBoss() {
         bossShootTime = performance.now() + Math.random() * 2000 + 1000; // Shoot in 1-3 seconds
         lastBossScore = score;
         
-        // 🎵 Play boss music when boss spawns (only if Green Goblin isn't active)
-        if (!greenGoblinActive) {
-            playBossMusic();
-        }
+        // 🎵 Play boss music when boss spawns
+        playBossMusic();
         
-        console.log(`🧌 Boss spawned at level ${score} for ${bossDuration/1000} seconds`);
+
     }
 }
 
@@ -2072,16 +2100,19 @@ function spawnGreenGoblin() {
             flyOffset: 0 // For up/down movement
         };
         
+        // Set Green Goblin level for music selection
+        greenGoblinLevel = goblinLevel;
+        
         greenGoblinActive = true;
         greenGoblinSpawnTime = performance.now();
         greenGoblinShootTime = performance.now() + Math.random() * 2000 + 1000; // Shoot in 1-3 seconds
         lastGreenGoblinScore = score;
         greenGoblinFlyDirection = 1; // Start flying up
         
-        // 🎵 Play Green Goblin music (takes priority over regular boss music)
+        // 🎵 Play Green Goblin music using boss music system
         playGreenGoblinMusic();
         
-        console.log(`👹 Green Goblin spawned at level ${score} for ${goblinDuration/1000} seconds`);
+
     }
 }
 
@@ -2333,11 +2364,10 @@ function gameOver(cause = 'obstacle') {
     
     pauseMusic(); // Use new music system
     
-    // 🎵 Stop boss/Green Goblin music if it's playing when game ends
+    // 🎵 Stop boss music if it's playing when game ends
     stopBossMusic();
-    stopGreenGoblinMusic();
     
-    console.log(`💀 Player died from: ${cause}`);
+
     
     // Hide original game over elements
     const gameOverText = document.getElementById('gameOver');
@@ -2373,24 +2403,19 @@ function initStartScreen() {
     const playGameBtn = document.getElementById('playGameBtn');
     const viewHighscoresBtn = document.getElementById('viewHighscoresBtn');
     
-    console.log('🔍 Checking buttons:');
-    console.log('playGameBtn:', playGameBtn);
-    console.log('viewHighscoresBtn:', viewHighscoresBtn);
+
     
     if (playGameBtn) {
-        console.log('✅ Adding event listeners to playGameBtn');
         
         playGameBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('🎮 Play Game button clicked!');
             startGameFromMenu();
         });
         
         playGameBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('🎮 Play Game button touched!');
             startGameFromMenu();
         });
         
@@ -2400,31 +2425,27 @@ function initStartScreen() {
             e.stopPropagation();
         });
     } else {
-        console.error('❌ playGameBtn not found!');
+        // playGameBtn not found
     }
     
     if (viewHighscoresBtn) {
-        console.log('✅ Adding event listeners to viewHighscoresBtn');
         
         // Simple direct click first
         viewHighscoresBtn.onclick = function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('🏆 Highscore button direct onclick!');
             showHighscoresFromMenu();
         };
         
         viewHighscoresBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('🏆 Highscore button clicked!');
             showHighscoresFromMenu();
         });
         
         viewHighscoresBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('🏆 Highscore button touched!');
             showHighscoresFromMenu();
         });
         
@@ -2434,35 +2455,24 @@ function initStartScreen() {
             e.stopPropagation();
         });
         
-        // Test if button is actually clickable
-        console.log('🔍 Button details:', {
-            id: viewHighscoresBtn.id,
-            className: viewHighscoresBtn.className,
-            style: viewHighscoresBtn.style.cssText,
-            disabled: viewHighscoresBtn.disabled,
-            offsetWidth: viewHighscoresBtn.offsetWidth,
-            offsetHeight: viewHighscoresBtn.offsetHeight
-        });
+
     } else {
-        console.error('❌ viewHighscoresBtn not found!');
+        // viewHighscoresBtn not found
     }
     
     // Guide button event listeners
     const guideBtn = document.getElementById('guideBtn');
     if (guideBtn) {
-        console.log('✅ Adding event listeners to guideBtn');
         
         guideBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('📖 Guide button clicked!');
             showGuideFromMenu();
         });
         
         guideBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('📖 Guide button touched!');
             showGuideFromMenu();
         });
         
@@ -2471,7 +2481,7 @@ function initStartScreen() {
             e.stopPropagation();
         });
     } else {
-        console.error('❌ guideBtn not found!');
+        // guideBtn not found
     }
     
     // Start the preview animation
@@ -2480,12 +2490,12 @@ function initStartScreen() {
         animatePreview();
     }
     
-    console.log('🎮 Start screen initialized');
+
 }
 
 // Guide screen functions
 function showGuideFromMenu() {
-    console.log('📖 Showing guide from menu...');
+
     
     // Hide start screen
     const startScreen = document.getElementById('startScreen');
@@ -2511,7 +2521,7 @@ function showGuideFromMenu() {
 }
 
 function hideGuideScreen() {
-    console.log('📖 Hiding guide screen...');
+
     
     const guideScreen = document.getElementById('guideScreen');
     if (guideScreen) {
@@ -2710,13 +2720,12 @@ function drawPreviewObstacles() {
 }
 
 function showStartScreen() {
-    console.log('📱 Showing start screen...');
+
     const startScreen = document.getElementById('startScreen');
     const gameContainer = document.getElementById('gameContainer');
     
     // CRITICAL FIX: Clear high score screen protection when returning to menu
     highScoreScreenActive = false;
-    console.log('🛡️ High score screen protection cleared - returning to menu');
     
     // Stop music when returning to menu
     pauseMusic();
@@ -2779,7 +2788,7 @@ function hideStartScreenTemporarily() {
 }
 
 function startGameFromMenu() {
-    console.log('🚀 Starting game from menu...');
+
     hideStartScreen();
     
     // Wait for start screen to fade out before starting game
@@ -2792,23 +2801,16 @@ function startGameFromMenu() {
 }
 
 function showHighscoresFromMenu() {
-    console.log('🏆 Showing highscores from menu...');
-    console.log('🔍 Debug info:');
-    console.log('- window.leaderboard:', window.leaderboard);
-    console.log('- typeof window.leaderboard.showLeaderboard:', typeof window.leaderboard?.showLeaderboard);
+
     
     // First check if modal exists
     const leaderboardModal = document.getElementById('leaderboardModal');
     if (!leaderboardModal) {
-        console.error('❌ Leaderboard modal not found in DOM!');
         alert('Error: Leaderboard interface not found!');
         return;
     }
     
-    console.log('✅ Leaderboard modal found');
-    
     // SIMPLE DIRECT MODAL SHOW - bypass all complex logic
-    console.log('🔧 Showing modal directly...');
     leaderboardModal.style.display = 'block';
     leaderboardModal.style.zIndex = '9999';
     leaderboardModal.style.position = 'fixed';
@@ -2830,7 +2832,7 @@ function showHighscoresFromMenu() {
             console.error('Error loading leaderboards:', error);
         }
     } else {
-        console.log('⚠️ No leaderboard system available');
+        // No leaderboard system available
     }
     
     // Add close listeners
@@ -2838,7 +2840,6 @@ function showHighscoresFromMenu() {
     const xBtn = document.querySelector('.close-btn');
     
     const closeHandler = () => {
-        console.log('🔧 Closing leaderboard modal');
         leaderboardModal.style.display = 'none';
         if (!gameStarted) {
             showStartScreen();
@@ -2859,20 +2860,17 @@ function showHighscoresFromMenu() {
         }
     };
     
-    console.log('✅ Leaderboard modal should now be visible');
+
 }
 
 function startGame() {
     // CRITICAL: Ensure touch system is working before starting game
-    console.log('🔧 Ensuring touch system is working before game start');
     document.removeEventListener('touchstart', handleTouch);
     document.addEventListener('touchstart', handleTouch);
     lastTapTime = 0; // Reset touch timing
-    console.log('✅ Touch system refreshed for new game');
     
     // CRITICAL FIX: Clear high score screen protection when starting new game
     highScoreScreenActive = false;
-    console.log('🛡️ High score screen protection deactivated - new game starting');
     
     // Reset game state
     score = 0;
@@ -2944,9 +2942,8 @@ function startGame() {
     // Reset last scare spawned flag
     lastScareSpawned = false;
     
-    // 🎵 Stop any boss/Green Goblin music when starting new game
+    // 🎵 Stop any boss music when starting new game
     stopBossMusic();
-    stopGreenGoblinMusic();
     
     // Initialize game elements if needed
     if (stars.length === 0) initStars();
@@ -2974,7 +2971,7 @@ function startGame() {
     
     if (highScoreScreen && !highScoreScreen.classList.contains('hidden')) {
         highScoreScreen.classList.add('hidden');
-        console.log('🔧 Closed highscore screen when starting game');
+    
     }
     
     // CRITICAL FIX: Hide the highscore form properly
@@ -2989,7 +2986,7 @@ function startGame() {
     invincibilityTimer = 0;
     invincibilityChargesUsed = 0;
     
-    console.log('🎮 Game started!');
+
     
     // TEST: Add a simple touch test that can be called manually
     window.testTouch = function() {
@@ -3003,7 +3000,7 @@ function startGame() {
         console.log('🧪 Test touch event dispatched');
     };
     
-    console.log('🧪 Touch test function available: window.testTouch()');
+
 }
 
 // Add a proper lastUpdateTime variable for delta time calculation
@@ -4046,7 +4043,7 @@ function drawSpeechBubble() {
     
     if (endingPhase === 'speech1') {
         ctx.fillText("You have done well, my son...", centerX, centerY - 25);
-        ctx.fillText("You faced the Suars... and the Green", centerX, centerY - 5);
+        ctx.fillText("You faced the monsters... and the Green", centerX, centerY - 5);
         ctx.fillText("Goblins... with great courage.", centerX, centerY + 15);
     } else if (endingPhase === 'speech2') {
         ctx.fillText("But I sense a storm beyond the stars...", centerX, centerY - 15);
@@ -4308,7 +4305,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Main menu music button
     if (menuMusicBtn) {
-        console.log('🔧 Setting up music button events');
+    
         
         menuMusicBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -4344,7 +4341,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuCounterBtn = document.getElementById('jumpCounterToggleBtn');
     
     if (menuCounterBtn) {
-        console.log('🔧 Setting up jump counter button events');
+    
         
         menuCounterBtn.addEventListener('click', (e) => {
             e.preventDefault();
